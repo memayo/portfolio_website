@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <script src="./support.js"></script>
 <!-- ✏️ EDITABLE CONTENT — loaded before the page runtime boots, so these files'
      window.Portfolio* globals are always ready by the time renderVals() first
@@ -15,6 +15,7 @@
 <link rel="stylesheet" href="./cursor-blob.css">
 <script src="./cursor-blob.js" defer></script>
 <link rel="stylesheet" href="./link-flourish.css">
+<link rel="stylesheet" href="./mobile-responsive.css">
 </head>
 <body>
 <x-dc>
@@ -601,7 +602,7 @@
   </div>
 
 
-<div style="position: relative; min-height: 100vh">
+<div class="site-shell" style="position: relative; min-height: 100vh">
 
   <!-- ═══ BACKGROUND VIDEOS — replace each src with your own clip ═══
        up/down/left/right: 25-frame look clips · center: 1-frame rest pose · waterfall: AFK secret -->
@@ -627,10 +628,10 @@
 
   <!-- ═══ TOP NAV (About / Contact) ═══ -->
 
-  <div style="position: fixed; top: 0; left: 0; right: 0; z-index: 10; opacity: {{ chromeOpacity }}; pointer-events: {{ chromePointerEvents }}; transition: opacity 900ms cubic-bezier(0.4,0,0.2,1)">
-    <div style="display:flex; align-items:center; justify-content:space-between; padding:14px 28px; width:100%; box-sizing:border-box; background:var(--surface-glass); backdrop-filter:blur(var(--blur-glass)); -webkit-backdrop-filter:blur(var(--blur-glass)); border:1px solid var(--surface-glass-border); border-radius:0 0 var(--radius-medium) var(--radius-medium); box-shadow:var(--shadow-glass);">
-      <span style="font-family:var(--font-display); font-size:18px; text-transform:uppercase; color:var(--text-primary);">{{ navBrand }}</span>
-      <nav style="display:flex; gap:28px;">
+  <div class="site-topbar" style="position: fixed; top: 0; left: 0; right: 0; z-index: 10; opacity: {{ chromeOpacity }}; pointer-events: {{ chromePointerEvents }}; transition: opacity 900ms cubic-bezier(0.4,0,0.2,1)">
+    <div class="site-topbar-panel" style="display:flex; align-items:center; justify-content:space-between; padding:14px 28px; width:100%; box-sizing:border-box; background:var(--surface-glass); backdrop-filter:blur(var(--blur-glass)); -webkit-backdrop-filter:blur(var(--blur-glass)); border:1px solid var(--surface-glass-border); border-radius:0 0 var(--radius-medium) var(--radius-medium); box-shadow:var(--shadow-glass);">
+      <span class="site-topbar-brand" style="font-family:var(--font-display); font-size:18px; text-transform:uppercase; color:var(--text-primary);">{{ navBrand }}</span>
+      <nav class="site-topbar-links" style="display:flex; gap:28px;">
         <sc-for list="{{ topNavItems }}" as="item" hint-placeholder-count="3">
           <span class="lx-link" onClick="{{ item.onClick }}" style="font-family:var(--font-body); font-size:14px; color:{{ item.color }}; text-shadow:{{ item.textShadow }}; cursor:pointer;">{{ item.label }}</span>
         </sc-for>
@@ -639,11 +640,11 @@
   </div>
 
   <!-- ═══ SIDEBAR NAV ═══ -->
-  <div style="position: fixed; top: 88px; left: 20px; bottom: 20px; z-index: 10; width: 240px; opacity: {{ chromeOpacity }}; pointer-events: {{ chromePointerEvents }}; transition: opacity 900ms cubic-bezier(0.4,0,0.2,1)">
-    <div style="width:240px; height:100%; box-sizing:border-box; display:flex; flex-direction:column; padding:20px 14px; background:var(--surface-glass-strong); backdrop-filter:blur(var(--blur-glass-strong)); -webkit-backdrop-filter:blur(var(--blur-glass-strong)); border:1px solid var(--surface-glass-border); border-radius:var(--radius-large); box-shadow:var(--shadow-glass);">
-      <div style="display:flex; flex-direction:column; gap:28px;">
-        <div style="font-family:var(--font-display); font-size:20px; text-transform:uppercase; letter-spacing:-0.01em; color:var(--text-primary); padding:0 8px;">{{ sidebarBrand }}</div>
-        <div style="display:flex; flex-direction:column; gap:2px;">
+  <div class="site-sidebar" style="position: fixed; top: 88px; left: 20px; bottom: 20px; z-index: 10; width: 240px; opacity: {{ chromeOpacity }}; pointer-events: {{ chromePointerEvents }}; transition: opacity 900ms cubic-bezier(0.4,0,0.2,1)">
+    <div class="site-sidebar-panel" style="width:240px; height:100%; box-sizing:border-box; display:flex; flex-direction:column; padding:20px 14px; background:var(--surface-glass-strong); backdrop-filter:blur(var(--blur-glass-strong)); -webkit-backdrop-filter:blur(var(--blur-glass-strong)); border:1px solid var(--surface-glass-border); border-radius:var(--radius-large); box-shadow:var(--shadow-glass);">
+      <div class="site-sidebar-stack" style="display:flex; flex-direction:column; gap:28px;">
+        <div class="site-sidebar-brand" style="font-family:var(--font-display); font-size:20px; text-transform:uppercase; letter-spacing:-0.01em; color:var(--text-primary); padding:0 8px;">{{ sidebarBrand }}</div>
+        <div class="site-sidebar-links" style="display:flex; flex-direction:column; gap:2px;">
           <sc-for list="{{ navItems }}" as="item" hint-placeholder-count="5">
             <div class="lx-nav" onClick="{{ item.onClick }}" style="display:flex; align-items:center; gap:12px; padding:10px 10px; border-radius:var(--radius-small); cursor:pointer; background:{{ item.bg }}; border-left:{{ item.borderLeft }}; transition:background 220ms cubic-bezier(0.4,0,0.2,1);">
               <div class="lx-nav-icon" style="display:flex; color:{{ item.iconColor }};">
@@ -661,12 +662,12 @@
   <!-- z-index lifts above the fixed sidebar/top-nav (both 10) only while a contact
        card is focused, so its overlay can cover them the way a focus layer should.
        Every other moment it stays at 5 and nothing else changes. -->
-  <main style="position: relative; z-index: {{ mainZIndex }}; min-height: 100vh; padding-left: 300px; display: flex; flex-direction: column; gap: 60px; box-sizing: border-box">
-    <div style="display:{{ homeDisplay }}; flex-direction:column; gap:60px;">
-      <section style="min-height: 80vh; display: flex; align-items: center; padding-top: 88px; opacity: {{ chromeOpacity }}; pointer-events: {{ chromePointerEvents }}; transition: opacity 900ms cubic-bezier(0.4,0,0.2,1)">
-        <div style="display:flex; flex-direction:column; gap:20px; max-width:460px; padding:0 8px;">
+  <main class="site-main" style="position: relative; z-index: {{ mainZIndex }}; min-height: 100vh; padding-left: 300px; display: flex; flex-direction: column; gap: 60px; box-sizing: border-box">
+    <div class="home-page" style="display:{{ homeDisplay }}; flex-direction:column; gap:60px;">
+      <section class="home-hero" style="min-height: 80vh; display: flex; align-items: center; padding-top: 88px; opacity: {{ chromeOpacity }}; pointer-events: {{ chromePointerEvents }}; transition: opacity 900ms cubic-bezier(0.4,0,0.2,1)">
+        <div class="home-copy" style="display:flex; flex-direction:column; gap:20px; max-width:460px; padding:0 8px;">
           <span style="font-family:var(--font-body); font-weight:500; font-size:12px; letter-spacing:0.08em; text-transform:uppercase; color:var(--accent-primary);">{{ eyebrow }}</span>
-          <h1 style="font-family:var(--font-display); font-weight:400; text-transform:uppercase; letter-spacing:-0.01em; font-size:52px; margin:0; color:#fff;">{{ siteName }}</h1>
+          <h1 class="home-title" style="font-family:var(--font-display); font-weight:400; text-transform:uppercase; letter-spacing:-0.01em; font-size:52px; margin:0; color:#fff;">{{ siteName }}</h1>
           <p style="font-family:var(--font-body); font-size:17px; max-width:400px; color:rgba(255,255,255,0.68); margin:0;">{{ tagline }}</p>
           <div style="display:flex; gap:14px; margin-top:8px;">
             <x-import component-from-global-scope="InteractiveMagicPortfolioDesignSystem_3a30b2.Button" rank="A" suit="spade" variant="primary" onClick="{{ goToProjects }}" hint-size="112px,156px">See the Work</x-import>
@@ -676,15 +677,15 @@
       </section>
     </div>
 
-    <div style="display:{{ projectsDisplay }}; flex-direction:column; gap:28px; padding-top:88px; padding-bottom:60px; opacity:{{ chromeOpacity }}; pointer-events:{{ chromePointerEvents }}; transition:opacity 900ms cubic-bezier(0.4,0,0.2,1);">
-      <div style="display:flex; flex-direction:column; gap:8px; padding:0 8px;">
+    <div class="projects-page" style="display:{{ projectsDisplay }}; flex-direction:column; gap:28px; padding-top:88px; padding-bottom:60px; opacity:{{ chromeOpacity }}; pointer-events:{{ chromePointerEvents }}; transition:opacity 900ms cubic-bezier(0.4,0,0.2,1);">
+      <div class="projects-heading" style="display:flex; flex-direction:column; gap:8px; padding:0 8px;">
         <span style="font-family:var(--font-body); font-weight:500; font-size:12px; letter-spacing:0.08em; text-transform:uppercase; color:var(--accent-primary);">The Deck</span>
         <h2 style="font-family:var(--font-display); font-weight:400; text-transform:uppercase; letter-spacing:-0.01em; font-size:36px; margin:0; color:#fff;">Projects</h2>
       </div>
-      <div style="display:flex; gap:22px; flex-wrap:wrap; padding:0 8px; perspective:1200px;">
+      <div class="projects-grid" style="display:flex; gap:22px; flex-wrap:wrap; padding:0 8px; perspective:1200px;">
         <sc-for list="{{ projects }}" as="p" hint-placeholder-count="4">
-          <div class="lx-card" style="display:flex; flex-direction:column; width:260px; border-radius:var(--radius-medium); overflow:hidden; text-decoration:none; background:var(--surface-card); border:1px solid var(--surface-card-border); box-shadow:var(--shadow-card); cursor:pointer; transform-style:preserve-3d; will-change:transform, box-shadow; transition:transform 400ms var(--ease-out), box-shadow 400ms var(--ease-out);" onMouseEnter="{{ onProjectHover }}" onMouseMove="{{ onProjectMove }}" onMouseLeave="{{ onProjectLeave }}" onClick="{{ p.onOpen }}">
-            <div style="position: relative; height: 300px; border-bottom: 1px solid var(--surface-card-border); overflow: hidden">
+          <div class="lx-card project-card" style="display:flex; flex-direction:column; width:260px; border-radius:var(--radius-medium); overflow:hidden; text-decoration:none; background:var(--surface-card); border:1px solid var(--surface-card-border); box-shadow:var(--shadow-card); cursor:pointer; transform-style:preserve-3d; will-change:transform, box-shadow; transition:transform 400ms var(--ease-out), box-shadow 400ms var(--ease-out);" onMouseEnter="{{ onProjectHover }}" onMouseMove="{{ onProjectMove }}" onMouseLeave="{{ onProjectLeave }}" onClick="{{ p.onOpen }}">
+            <div class="project-card-media" style="position: relative; height: 300px; border-bottom: 1px solid var(--surface-card-border); overflow: hidden">
               <!-- ✏️ static project image: set p.image in the projects data to swap the artwork -->
               <div class="project-art-image" style="position: absolute; inset: 0; background: {{ p.artBg }}; transition: opacity 300ms var(--ease-standard)"></div>
               <!-- ✏️ hover-loop review video: swap p.previewVideo for a real muted mp4 clip -->
@@ -692,7 +693,7 @@
               <span style="position:absolute; top:10px; left:12px; font-family:var(--font-display); font-size:18px; color:var(--text-primary); text-shadow:0 2px 8px rgba(0,0,0,0.6); line-height:1;">{{ p.rank }}<br>{{ p.suitGlyphChar }}</span>
               <span style="position:absolute; bottom:10px; right:12px; font-family:var(--font-display); font-size:18px; color:var(--text-primary); text-shadow:0 2px 8px rgba(0,0,0,0.6); line-height:1; transform:rotate(180deg);">{{ p.rank }}<br>{{ p.suitGlyphChar }}</span>
             </div>
-            <div style="display:flex; flex-direction:column; gap:12px; padding:16px 18px 20px;">
+            <div class="project-card-body" style="display:flex; flex-direction:column; gap:12px; padding:16px 18px 20px;">
               <h3 style="margin:0; font-family:var(--font-display); font-weight:400; font-size:20px; letter-spacing:-0.01em; text-transform:uppercase; color:var(--text-primary);">{{ p.title }}</h3>
               <div style="display:flex; flex-wrap:wrap; gap:6px;">
                 <sc-for list="{{ p.tags }}" as="t" hint-placeholder-count="2">
@@ -711,7 +712,7 @@
          while it scrolls past. Every scene is a layer inside that stage, and
          _paintSkills() maps scroll progress onto each layer's transform/opacity.
          Scene copy/order comes from skillGroups in renderVals() below. -->
-    <div style="display:{{ skillsDisplay }}; flex-direction:column; opacity:{{ chromeOpacity }}; pointer-events:{{ chromePointerEvents }}; transition:opacity 900ms cubic-bezier(0.4,0,0.2,1);">
+    <div class="skills-page" style="display:{{ skillsDisplay }}; flex-direction:column; opacity:{{ chromeOpacity }}; pointer-events:{{ chromePointerEvents }}; transition:opacity 900ms cubic-bezier(0.4,0,0.2,1);">
       <div ref="{{ setSkillsTrackRef }}" style="position:relative; width:100%; height:{{ skillsTrackHeight }};">
         <div style="position:{{ skillsViewportPosition }}; top:0; width:100%; height:{{ skillsViewportHeight }}; overflow:{{ skillsViewportOverflow }}; display:flex; flex-direction:column; align-items:center; justify-content:center; box-sizing:border-box;">
 
@@ -826,8 +827,8 @@
          Idle / hover / pinned is decided by one state machine (contactHovered +
          contactPinned in state; see contactCards in renderVals). Clicking the
          stage anywhere outside a card returns the hand to idle. -->
-    <div ref="{{ setContactRootRef }}" onClick="{{ onContactBackdrop }}" style="display:{{ contactDisplay }}; flex-direction:column; gap:18px; padding-top:88px; padding-bottom:40px; opacity:{{ chromeOpacity }}; pointer-events:{{ chromePointerEvents }}; transition:opacity 900ms cubic-bezier(0.4,0,0.2,1);">
-      <div style="display:flex; flex-direction:column; gap:8px; padding:0 8px;">
+    <div class="contact-page" ref="{{ setContactRootRef }}" onClick="{{ onContactBackdrop }}" style="display:{{ contactDisplay }}; flex-direction:column; gap:18px; padding-top:88px; padding-bottom:40px; opacity:{{ chromeOpacity }}; pointer-events:{{ chromePointerEvents }}; transition:opacity 900ms cubic-bezier(0.4,0,0.2,1);">
+      <div class="projects-heading" style="display:flex; flex-direction:column; gap:8px; padding:0 8px;">
         <span style="font-family:var(--font-body); font-weight:500; font-size:12px; letter-spacing:0.08em; text-transform:uppercase; color:var(--accent-primary); overflow-wrap:anywhere;">Off the Record</span>
         <h2 style="font-family:var(--font-display); font-weight:400; text-transform:uppercase; letter-spacing:-0.01em; font-size:clamp(26px,6vw,36px); margin:0; color:#fff; overflow-wrap:anywhere;">Contact</h2>
         <span style="font-family:var(--font-body); font-size:14px; color:rgba(255,255,255,0.6); overflow-wrap:anywhere;">{{ contactPrompt }}</span>
@@ -924,13 +925,13 @@
 </div>
 
   <!-- ═══ PROJECT DETAIL MODAL ═══ -->
-  <div style="position:fixed; inset:0; z-index:1500; display:{{ modalDisplay }}; align-items:center; justify-content:center; padding:40px; box-sizing:border-box;" onClick="{{ closeProjectModal }}">
+  <div class="project-modal" style="position:fixed; inset:0; z-index:1500; display:{{ modalDisplay }}; align-items:center; justify-content:center; padding:40px; box-sizing:border-box;" onClick="{{ closeProjectModal }}">
     <div style="position:absolute; inset:0; background:rgba(12,8,1,0.78); opacity:{{ modalBackdropOpacity }}; transition:opacity 320ms var(--ease-standard);"></div>
-    <div style="position:relative; width:min(720px, 100%); max-height:86vh; overflow-y:auto; display:flex; flex-direction:column; background:var(--surface-glass); backdrop-filter:blur(var(--blur-glass-strong)); -webkit-backdrop-filter:blur(var(--blur-glass-strong)); border:1px solid var(--surface-glass-border); border-radius:var(--radius-medium); box-shadow:var(--shadow-glass), var(--shadow-glow); opacity:{{ modalContentOpacity }}; transform:{{ modalContentTransform }}; transition:opacity 320ms var(--ease-standard), transform 320ms var(--ease-out);" onClick="{{ stopModalContentClick }}">
+    <div class="project-modal-panel" style="position:relative; width:min(720px, 100%); max-height:86vh; overflow-y:auto; display:flex; flex-direction:column; background:var(--surface-glass); backdrop-filter:blur(var(--blur-glass-strong)); -webkit-backdrop-filter:blur(var(--blur-glass-strong)); border:1px solid var(--surface-glass-border); border-radius:var(--radius-medium); box-shadow:var(--shadow-glass), var(--shadow-glow); opacity:{{ modalContentOpacity }}; transform:{{ modalContentTransform }}; transition:opacity 320ms var(--ease-standard), transform 320ms var(--ease-out);" onClick="{{ stopModalContentClick }}">
       <button type="button" class="lx-icon-btn" aria-label="Close project" onClick="{{ closeProjectModal }}" style="position:absolute; top:16px; right:16px; z-index:2; width:36px; height:36px;">
         <x-import component-from-global-scope="InteractiveMagicPortfolioDesignSystem_3a30b2.Icon" name="Close" size="{{ 16 }}" hint-size="16px,16px"></x-import>
       </button>
-      <div style="position:relative; height:380px; overflow:hidden; background:rgba(12,8,1,0.4); transition:background 260ms var(--ease-standard); flex-shrink:0;" onMouseEnter="{{ pauseCarouselAuto }}" onMouseLeave="{{ resumeCarouselAuto }}">
+      <div class="project-modal-gallery" style="position:relative; height:380px; overflow:hidden; background:rgba(12,8,1,0.4); transition:background 260ms var(--ease-standard); flex-shrink:0;" onMouseEnter="{{ pauseCarouselAuto }}" onMouseLeave="{{ resumeCarouselAuto }}">
         <sc-for list="{{ modalSlides }}" as="slide" hint-placeholder-count="3">
           <div onClick="{{ slide.onClick }}" style="position:absolute; top:50%; left:50%; width:68%; height:86%; border-radius:var(--radius-medium); background:{{ slide.bg }}; box-shadow:{{ slide.shadow }}; opacity:{{ slide.opacity }}; z-index:{{ slide.z }}; pointer-events:{{ slide.pointerEvents }}; cursor:{{ slide.cursor }}; transform:{{ slide.transform }}; transition:all 0.5s ease-in-out;"></div>
         </sc-for>
@@ -941,7 +942,7 @@
         </sc-if>
       </div>
       <sc-if value="{{ modalHasMultipleSlides }}">
-        <div style="display:flex; gap:6px; padding:14px 32px 0;">
+        <div class="project-modal-dots" style="display:flex; gap:6px; padding:14px 32px 0;">
           <sc-for list="{{ modalDots }}" as="dot" hint-placeholder-count="2">
             <div class="lx-dot" onClick="{{ dot.onClick }}" style="flex:1; height:3px; border-radius:999px; overflow:hidden; cursor:pointer;">
               <sc-if value="{{ dot.active }}">
@@ -951,7 +952,7 @@
           </sc-for>
         </div>
       </sc-if>
-      <div style="display:flex; flex-direction:column; gap:16px; padding:28px 32px 32px;">
+      <div class="project-modal-content" style="display:flex; flex-direction:column; gap:16px; padding:28px 32px 32px;">
         <div style="display:flex; flex-direction:column; gap:10px;">
           <h2 style="margin:0; font-family:var(--font-display); font-weight:400; text-transform:uppercase; letter-spacing:-0.01em; font-size:32px; color:#fff;">{{ modalTitle }}</h2>
           <p lang="{{ modalDescriptionLang }}" style="margin:0; font-family:var(--font-body); font-size:15px; line-height:1.6; color:rgba(255,255,255,0.72); max-width:560px;">{{ modalDescription }}</p>
