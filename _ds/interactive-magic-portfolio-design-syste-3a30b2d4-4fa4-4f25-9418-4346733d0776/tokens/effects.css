@@ -1,0 +1,20 @@
+/* Radius & stroke — verbatim from Style-Guide/Radius + "UI Styles" variable collection. */
+:root {
+  --radius-small: 8px;
+  --radius-medium: 16px;
+  --radius-large: 24px;
+  --radius-pill: 999px;
+
+  --stroke-border: 1px;
+  --stroke-divider: 1px;
+
+  --blur-glass: 20px;
+  --blur-glass-strong: 32px;
+
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1); /* @kind other */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1); /* @kind other */
+  --duration-fast: 150ms; /* @kind other */
+  --duration-base: 300ms; /* @kind other */
+  /* AFK fade in/out duration */
+  --duration-idle-fade: 900ms; /* @kind other */
+}

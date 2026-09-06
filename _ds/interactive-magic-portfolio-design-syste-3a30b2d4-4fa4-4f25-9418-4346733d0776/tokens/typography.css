@@ -1,0 +1,45 @@
+/* Type scale — sizes transcribed from Style-Guide/Typography & Variables (Heading 1..5),
+   applied to the two-typeface system: Castoro Titling (display/all-caps) + Roboto (body). */
+:root {
+  --text-h1: 56px;   /* line-height 1.2 */
+  --text-h2: 48px;
+  --text-h3: 36px;
+  --text-h4: 32px;
+  --text-h5: 24px;
+  --text-body-lg: 18px; /* line-height 1.5 */
+  --text-body: 16px;
+  --text-body-sm: 14px;
+  --text-caption: 12px;
+
+  --leading-tight: 1.1;
+  --leading-display: 1.2;
+  --leading-body: 1.5;
+
+  --tracking-display: -0.01em;
+  --tracking-caps: 0.08em; /* used on all-caps eyebrows/badges */
+}
+
+.ds-display {
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: var(--tracking-display);
+  text-transform: uppercase;
+  line-height: var(--leading-display);
+  color: var(--text-primary);
+}
+
+.ds-body {
+  font-family: var(--font-body);
+  font-weight: 400;
+  line-height: var(--leading-body);
+  color: var(--text-secondary);
+}
+
+.ds-eyebrow {
+  font-family: var(--font-body);
+  font-weight: 500;
+  font-size: var(--text-caption);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--accent-primary);
+}

@@ -1,0 +1,4 @@
+[build]
+  command = "node prepare-deploy.mjs"
+  publish = "deploy-ready"
+

@@ -1,0 +1,57 @@
+/* Interactive Magic Portfolio — Color tokens
+   Base values transcribed verbatim from the Relume kit's Style-Guide/Variables page
+   (already a near-black scheme: rgb(12,8,1) background, rgb(151,71,255) violet stroke accent).
+   Semantic aliases layer the "playing cards & illusion" theme on top: a void backdrop that
+   stays transparent at the very center (for the background video), glass surfaces, gold foil
+   for rank/suit accents, and the violet "magic" accent for interactive/glow states. */
+:root {
+  /* ---- primitives (verbatim from source) ---- */
+  --c-void:            rgb(12, 8, 1);        /* near-black, warm */
+  --c-white:            rgb(255, 255, 255);
+  --c-neutral-lightest: rgb(242, 242, 242);
+  --c-neutral-lighter:  rgb(218, 217, 216);
+  --c-neutral-light:    rgb(182, 180, 178);
+  --c-neutral:          rgb(104, 104, 104);
+  --c-neutral-dark:     rgb(84, 82, 77);
+  --c-neutral-darker:   rgb(34, 34, 34);
+  --c-neutral-darkest:  rgb(22, 22, 22);
+
+  --c-violet-stroke:    rgb(151, 71, 255);   /* primary "magic" accent — Figma stroke usage */
+  --c-violet-mid:       rgb(138, 56, 245);
+  --c-violet-deep:      rgb(98, 72, 255);
+  --c-violet-glow:      rgb(162, 89, 255);
+
+  --c-ember:            rgb(255, 116, 72);   /* rare warm accent — sparingly, "flame" states */
+  --c-crimson:          rgb(255, 72, 72);    /* error / danger, card-suit red */
+
+  /* ---- semantic aliases ---- */
+  --bg-void: var(--c-void);                  /* page backdrop — the "table felt" behind everything */
+  --bg-transparent-well: transparent;        /* the always-clear center reserved for the bg video */
+
+  --surface-glass: rgba(12, 8, 1, 0.55);     /* frosted dark panel over the video */
+  --surface-glass-strong: rgba(12, 8, 1, 0.78);
+  --surface-glass-border: rgba(255, 255, 255, 0.14);
+  --surface-card: rgba(18, 13, 8, 0.72);     /* project / CTA "playing card" face */
+  --surface-card-border: rgba(151, 71, 255, 0.35);
+
+  --text-primary: var(--c-white);
+  --text-secondary: rgba(255, 255, 255, 0.68);
+  --text-muted: rgba(255, 255, 255, 0.44);
+  --text-on-accent: var(--c-void);
+
+  --accent-primary: var(--c-violet-stroke);  /* the "magic" glow — links, focus, active state */
+  --accent-primary-hover: var(--c-violet-glow);
+  --accent-primary-active: var(--c-violet-deep);
+  --accent-ember: var(--c-ember);
+
+  --border-hairline: rgba(255, 255, 255, 0.16);
+  --border-accent: rgba(151, 71, 255, 0.5);
+
+  --shadow-card: 0 24px 48px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  --shadow-glow: 0 0 32px rgba(151, 71, 255, 0.35);
+  --shadow-glass: 0 8px 32px rgba(0, 0, 0, 0.45);
+
+  /* default link colors — used the first time a link appears anywhere in the system */
+  --link-color: var(--accent-primary);
+  --link-color-hover: var(--accent-primary-hover);
+}

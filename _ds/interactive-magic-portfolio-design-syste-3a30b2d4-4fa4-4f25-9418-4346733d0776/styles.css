@@ -1,0 +1,7 @@
+/* Interactive Magic Portfolio — global stylesheet entry point.
+   Keep this file as @import lines only; add new token files here as they're created. */
+@import "tokens/fonts.css";
+@import "tokens/colors.css";
+@import "tokens/typography.css";
+@import "tokens/spacing.css";
+@import "tokens/effects.css";

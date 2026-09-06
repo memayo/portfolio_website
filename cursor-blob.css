@@ -1,0 +1,81 @@
+/* Gooey invert cursor — a jelly blob that trails the pointer on a spring and
+   shows the page beneath it in inverted colour.
+
+   How the two effects coexist (they normally fight each other):
+     · The blobs are plain WHITE. `filter:url(#cb-goo)` blurs them and then
+       snaps the alpha back to hard edges, so the main blob and its lagging
+       trail melt into one liquid silhouette — the gooey/metaball merge.
+     · `mix-blend-mode:difference` on that SAME element inverts whatever is
+       painted behind the merged silhouette (white difference = 255 - colour).
+   Both live on .cb-root together on purpose: a `filter` on a PARENT would
+   isolate any blending or backdrop-filter on its children, and two separate
+   inverting layers would cancel each other out where they overlap. Filtering
+   first and blending the finished result second avoids both traps. */
+
+.cb-root {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  pointer-events: none;
+  mix-blend-mode: difference;
+  filter: url(#cb-goo);
+  /* Blend mode can't be interpolated, so the swap below is instant while the
+     shrink/fade that goes with it is sprung in JS. */
+  transition: mix-blend-mode 0s;
+}
+
+.cb-blob {
+  position: absolute;
+  top: 0;
+  left: 0;
+  background: #fff;
+  will-change: transform;
+  /* Slow asymmetric morph so the silhouette never reads as a rigid circle. */
+  animation: cb-wobble 7s ease-in-out infinite;
+  transition: background 260ms ease;
+}
+
+/* ── Over a control: stop inverting, soak in instead ──
+   The difference blend reads as harsh over buttons, so on any interactive
+   element the blob drops the inversion and becomes a soft violet light that
+   screens over the surface — it shrinks and fades at the same time (driven by
+   the absorb spring in cursor-blob.js) so it looks like a droplet being taken
+   up by the button rather than a shape sitting on top of it. */
+.cb-root.is-absorbed {
+  mix-blend-mode: screen;
+}
+.cb-root.is-absorbed .cb-blob {
+  background: rgba(168, 106, 255, 0.95);
+}
+
+.cb-blob--main {
+  width: 92px;
+  height: 92px;
+  margin: -46px 0 0 -46px;
+}
+
+.cb-blob--trail {
+  width: 58px;
+  height: 58px;
+  margin: -29px 0 0 -29px;
+  animation-duration: 9s;
+  animation-direction: reverse;
+}
+
+@keyframes cb-wobble {
+  0%,
+  100% { border-radius: 52% 48% 46% 54% / 50% 46% 54% 50%; }
+  33%  { border-radius: 45% 55% 53% 47% / 55% 52% 48% 45%; }
+  66%  { border-radius: 55% 45% 49% 51% / 46% 55% 45% 54%; }
+}
+
+/* The blob is decoration only — drop it entirely rather than animate a large
+   inverted shape for anyone who asked for less motion. */
+@media (prefers-reduced-motion: reduce) {
+  .cb-root { display: none; }
+}
+
+/* No hovering pointer (touch) means nothing to follow. */
+@media (hover: none), (pointer: coarse) {
+  .cb-root { display: none; }
+}

@@ -1,0 +1,7 @@
+deploy-ready/
+.claude/
+.tmp-*
+.thumbnail
+.image-slots.state.json
+uploads/
+chatgpt-image-*.png

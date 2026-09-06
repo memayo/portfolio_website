@@ -1,0 +1,2371 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+<!-- ✏️ EDITABLE CONTENT — loaded before the page runtime boots, so these files'
+     window.Portfolio* globals are always ready by the time renderVals() first
+     runs. Edit these three, never the arrays inside PortfolioSite.dc.html itself. -->
+<script src="./projects-data.js"></script>
+<script src="./skills-data.js"></script>
+<script src="./contact-data.js"></script>
+<link rel="stylesheet" href="./about-constellation.css">
+<script src="./about-constellation.js" defer></script>
+<link rel="stylesheet" href="./cursor-blob.css">
+<script src="./cursor-blob.js" defer></script>
+<link rel="stylesheet" href="./link-flourish.css">
+</head>
+<body>
+<x-dc>
+<!-- @template name="Portfolio Site" description="Dark glassmorphic game-dev/pixel-artist portfolio with playing-card CTAs and a secret AFK fade" -->
+<helmet>
+  <script src="./ds-base.js"></script>
+  <style>
+    @keyframes preloader-drop {
+      0% { transform: translateY(-140vh); opacity: 0; }
+      60% { opacity: 1; }
+      100% { transform: translateY(0); opacity: 1; }
+    }
+    @keyframes preloader-spin {
+      from { transform: rotateY(0deg); }
+      to { transform: rotateY(360deg); }
+    }
+    @keyframes carousel-fill {
+      from { width: 0%; }
+      to { width: 100%; }
+    }
+    @keyframes sk-hint {
+      0%, 100% { transform: translateY(0); opacity: 0.55; }
+      50%      { transform: translateY(7px); opacity: 1; }
+    }
+
+    /* ═══ SKILLS scroll presentation ═══
+       Every scene is one layer inside the sticky viewport; _paintSkills() below
+       writes only transform/opacity onto them, so nothing here triggers layout. */
+    .sk-scene {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      /* Vertical padding lives here, not on the stage: an absolutely positioned
+         scene resolves inset:0 against the stage's PADDING box, so stage padding
+         would not clear the fixed top nav. */
+      padding: clamp(84px, 12vh, 104px) 20px clamp(36px, 6vh, 54px);
+      box-sizing: border-box;
+      text-align: center;
+      pointer-events: none;
+      will-change: transform, opacity;
+      backface-visibility: hidden;
+    }
+    /* The one element per scene that _paintSkills() transforms. Keeping the
+       transform on the card (not the full-stage wrapper) means rotation pivots
+       around the card's own centre, so a tilted card that rests off-centre still
+       turns on itself instead of swinging on an arc. */
+    .sk-move { will-change: transform; backface-visibility: hidden; }
+
+    /* The stack the text-only scenes (intro, chapter markers) sit in. Its children
+       carry data-sk-layer and are fanned individually. */
+    .sk-stack {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: clamp(10px, 2vh, 20px);
+      max-width: 100%;
+    }
+    .sk-stack > [data-sk-layer] { will-change: transform; }
+
+    /* ── The skill card ──
+       Same deck as the preloader / nav-transition card: violet-to-void gradient,
+       lit top edge, thin violet stroke, corner ranks. */
+    .sk-card {
+      position: relative;
+      width: clamp(198px, 22vw, 286px);
+      aspect-ratio: 1 / 1.46;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: clamp(9px, 1.8vh, 18px);
+      padding: clamp(18px, 3vh, 30px) clamp(15px, 2vw, 24px);
+      box-sizing: border-box;
+      border-radius: 18px;
+      border: 1px solid rgba(151, 71, 255, 0.45);
+      /* Solid enough to read as a card face over the video, with the violet lit
+         from the top edge the way the rest of the deck is. */
+      background:
+        radial-gradient(118% 74% at 50% 4%, rgba(151, 71, 255, 0.34), transparent 64%),
+        linear-gradient(176deg, rgba(31, 17, 52, 0.94), rgba(12, 8, 1, 0.97));
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      box-shadow:
+        0 0 58px rgba(151, 71, 255, 0.24),
+        0 30px 62px rgba(0, 0, 0, 0.62),
+        inset 0 1px 0 rgba(255, 255, 255, 0.09);
+    }
+    /* inner hairline — the delicate second rule a card face carries */
+    .sk-card::after {
+      content: '';
+      position: absolute;
+      inset: 9px;
+      border-radius: 11px;
+      border: 1px solid rgba(151, 71, 255, 0.15);
+      pointer-events: none;
+    }
+    .sk-card-rank {
+      position: absolute;
+      top: 13px;
+      left: 15px;
+      font-family: var(--font-display);
+      font-size: 16px;
+      line-height: 1;
+      color: var(--accent-primary);
+      opacity: 0.85;
+    }
+    .sk-card-rank-br {
+      top: auto;
+      left: auto;
+      bottom: 13px;
+      right: 15px;
+      transform: rotate(180deg);
+    }
+    .sk-card-icon {
+      width: clamp(66px, 8.4vw, 100px);
+      height: clamp(66px, 8.4vw, 100px);
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      border: 1px solid rgba(151, 71, 255, 0.38);
+      background: radial-gradient(circle at 50% 36%, rgba(151, 71, 255, 0.22), rgba(12, 8, 1, 0.55) 70%);
+      box-shadow: inset 0 0 24px rgba(151, 71, 255, 0.18);
+    }
+    .sk-card-icon img { width: 54%; height: 54%; object-fit: contain; }
+    .sk-card-rule {
+      width: 30px;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(151, 71, 255, 0.75), transparent);
+    }
+    .sk-card-name {
+      margin: 0;
+      font-family: var(--font-display);
+      font-weight: 400;
+      text-transform: uppercase;
+      letter-spacing: -0.01em;
+      line-height: 1.1;
+      font-size: clamp(17px, 1.9vw, 25px);
+      color: #fff;
+      text-align: center;
+      overflow-wrap: anywhere;
+    }
+    .sk-card-cat {
+      font-family: var(--font-body);
+      font-weight: 500;
+      font-size: 10px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: rgba(151, 71, 255, 0.9);
+      text-align: center;
+    }
+    .sk-num {
+      font-family: var(--font-display);
+      font-size: clamp(46px, 8vw, 96px);
+      line-height: 1;
+      letter-spacing: 0.02em;
+      color: rgba(151, 71, 255, 0.34);
+    }
+    .sk-name {
+      margin: 0;
+      font-family: var(--font-display);
+      font-weight: 400;
+      text-transform: uppercase;
+      letter-spacing: -0.01em;
+      line-height: 1.04;
+      font-size: clamp(32px, 6.8vw, 78px);
+      color: #fff;
+      text-shadow: 0 0 46px rgba(151, 71, 255, 0.34);
+      overflow-wrap: anywhere;
+    }
+    .sk-chapter-name { font-size: clamp(28px, 5.2vw, 58px); }
+    .sk-cat {
+      font-family: var(--font-body);
+      font-weight: 500;
+      font-size: clamp(10px, 1.3vw, 13px);
+      letter-spacing: 0.26em;
+      text-transform: uppercase;
+      color: var(--accent-primary);
+    }
+    .sk-meta {
+      font-family: var(--font-body);
+      font-size: 12px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+    /* Icon plate — a thin ring + inner glow rather than another filled card. */
+    .sk-icon-halo {
+      width: clamp(84px, 15vw, 132px);
+      height: clamp(84px, 15vw, 132px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      border: 1px solid rgba(151, 71, 255, 0.42);
+      background: radial-gradient(circle at 50% 40%, rgba(151, 71, 255, 0.2), rgba(12, 8, 1, 0.5) 72%);
+      box-shadow: 0 0 46px rgba(151, 71, 255, 0.26), inset 0 0 26px rgba(151, 71, 255, 0.14);
+    }
+    .sk-icon-halo img { width: 52%; height: 52%; object-fit: contain; }
+    .sk-final-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
+      gap: clamp(18px, 3vh, 34px) clamp(20px, 4vw, 56px);
+      width: min(940px, 100%);
+      text-align: left;
+    }
+    .sk-final-item { will-change: transform, opacity; }
+    /* Summary rows are the cards in miniature — same stroke, same gradient — so the
+       assembly reads as the deck filing itself away rather than a new layout. */
+    .sk-final-row {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      padding: 7px 12px 7px 8px;
+      border-radius: 11px;
+      border: 1px solid rgba(151, 71, 255, 0.28);
+      background: linear-gradient(172deg, rgba(151, 71, 255, 0.11), rgba(12, 8, 1, 0.66));
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    }
+    .sk-final-row img { width: 19px; height: 19px; object-fit: contain; }
+    .sk-final-chip {
+      width: 30px;
+      height: 30px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid rgba(151, 71, 255, 0.3);
+      border-radius: 50%;
+      background: radial-gradient(circle at 50% 36%, rgba(151, 71, 255, 0.2), rgba(12, 8, 1, 0.5) 72%);
+    }
+    /* Rail styling lives here, not inline: an inline `display` would outrank the
+       breakpoint below and keep the rail on screen at phone widths. */
+    .sk-rail {
+      position: absolute;
+      right: clamp(14px, 3vw, 40px);
+      top: 50%;
+      transform: translateY(-50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+      pointer-events: none;
+    }
+    @media (max-width: 900px) { .sk-rail { display: none; } }
+    .sk-rail-off { display: none; }
+    @media (prefers-reduced-motion: reduce) { .sk-hint { animation: none; } }
+
+    /* ═══ CONTACT — the card deck ═══
+       Every visual difference between idle / hover / pinned comes from the state
+       machine in renderVals(): the slot's transform, z-index and opacity are
+       computed there, and these rules only describe how each state looks. */
+    @keyframes ct-float {
+      0%, 100% { transform: translateY(0); }
+      50%      { transform: translateY(-4px); }
+    }
+    @keyframes ct-shine {
+      from { transform: translateX(-130%) skewX(-18deg); opacity: 0; }
+      30%  { opacity: 0.85; }
+      to   { transform: translateX(230%) skewX(-18deg); opacity: 0; }
+    }
+    .ct-stage {
+      position: relative;
+      width: 100%;
+      /* Tall enough that a lifted card still has room above it; the floor matters
+         more than the ideal, since _fitContactDeck() scales the hand to whatever
+         this ends up being. */
+      height: clamp(420px, 58vh, 540px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      /* Clips cards being thrown out of the hand, and keeps the off-deck cards
+         parked outside it from extending the document's scroll width. The pinned
+         card is NOT in here — it lives in .ct-overlay, so it is never clipped. */
+      overflow: hidden;
+    }
+    /* Zero-size origin: the cards hang off its centre point, so the whole hand can
+       be scaled to fit narrow viewports without re-authoring any coordinates. */
+    .ct-deck {
+      position: relative;
+      width: 0;
+      height: 0;
+      transition: transform 420ms cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .ct-slot {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 244px;
+      height: 352px;
+      margin: -176px 0 0 -122px;
+      cursor: pointer;
+      outline: none;
+      will-change: transform, opacity;
+      /* Long, soft settle — a card being dealt rather than snapped into place.
+         Opacity trails the movement so a thrown card fades as it drifts out. */
+      transition: transform 620ms cubic-bezier(0.22, 1, 0.36, 1), opacity 520ms ease;
+    }
+    .ct-card {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      padding: 13px 15px 12px;
+      border-radius: 16px;
+      overflow: hidden;
+      border: 1px solid rgba(151, 71, 255, 0.4);
+      background:
+        radial-gradient(116% 70% at 50% 3%, rgba(151, 71, 255, 0.3), transparent 62%),
+        linear-gradient(176deg, rgba(31, 17, 52, 0.95), rgba(12, 8, 1, 0.97));
+      box-shadow:
+        0 0 30px rgba(151, 71, 255, 0.14),
+        0 20px 42px rgba(0, 0, 0, 0.6),
+        inset 0 1px 0 rgba(255, 255, 255, 0.07);
+      transition: border-color 300ms ease, box-shadow 300ms ease;
+    }
+    .ct-card::after {
+      content: '';
+      position: absolute;
+      inset: 7px;
+      border-radius: 10px;
+      border: 1px solid rgba(151, 71, 255, 0.14);
+      pointer-events: none;
+    }
+    .is-hover .ct-card {
+      border-color: rgba(151, 71, 255, 0.7);
+      box-shadow:
+        0 0 44px rgba(151, 71, 255, 0.32),
+        0 26px 50px rgba(0, 0, 0, 0.62),
+        inset 0 1px 0 rgba(255, 255, 255, 0.11);
+    }
+    /* ── Focus overlay: the pinned card, in its own layer above the deck ──
+       Fixed to the viewport with real top padding, so it is centred in what the
+       visitor can actually see and can never be clipped by the stage. */
+    .ct-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 900;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-sizing: border-box;
+      /* top padding clears the fixed top nav; bottom clears the idle hint pill */
+      /* top clears the fixed top nav; bottom leaves room for the floating deck nav */
+      padding: clamp(92px, 13vh, 128px) 20px clamp(104px, 15vh, 140px);
+      background: rgba(12, 8, 1, 0.5);
+      backdrop-filter: blur(3px);
+      -webkit-backdrop-filter: blur(3px);
+      animation: ct-overlay-in 260ms ease-out both;
+    }
+    @keyframes ct-overlay-in { from { opacity: 0; } to { opacity: 1; } }
+    .ct-focus {
+      position: relative;
+      /* Height-led so the whole card always fits the padded box; the width
+         follows the ratio, and max-width keeps it inside narrow screens. */
+      height: min(520px, 100%);
+      aspect-ratio: 1 / 1.44;
+      max-width: 100%;
+      animation: ct-float 4.4s ease-in-out infinite;
+    }
+    .ct-focus .ct-card {
+      border-color: rgba(184, 130, 255, 0.9);
+      box-shadow:
+        0 0 90px rgba(151, 71, 255, 0.5),
+        0 34px 70px rgba(0, 0, 0, 0.7),
+        inset 0 1px 0 rgba(255, 255, 255, 0.14);
+      padding: 20px 22px 18px;
+    }
+    /* Ambient pool of light behind the focused card. */
+    .ct-focus::before {
+      content: '';
+      position: absolute;
+      inset: -16%;
+      border-radius: 50%;
+      background: radial-gradient(closest-side, rgba(151, 71, 255, 0.32), transparent 72%);
+      pointer-events: none;
+    }
+    .ct-focus .ct-badge { width: 68px; height: 68px; border-radius: 18px; }
+    .ct-focus .ct-badge img { width: 40px; height: 40px; }
+    .ct-focus .ct-index { font-size: 17px; }
+    .ct-focus .ct-avatar { width: 108px; height: 108px; margin: 18px auto 16px; border-color: rgba(184, 130, 255, 0.75); box-shadow: 0 0 26px rgba(151, 71, 255, 0.4); }
+    .ct-focus .ct-platform { font-size: 25px; }
+    .ct-focus .ct-user { font-size: 15px; margin-top: 8px; }
+    .ct-focus .ct-handle { font-size: 13px; }
+    .ct-focus .ct-desc { font-size: 13.5px; margin-top: 11px; color: rgba(255, 255, 255, 0.78); }
+    .ct-focus .ct-hint { font-size: 11.5px; opacity: 1; transform: none; }
+    /* One-shot sweep, fired by the class landing — never looped. */
+    .ct-shine {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      width: 42%;
+      pointer-events: none;
+      opacity: 0;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    }
+    .ct-focus .ct-shine { animation: ct-shine 950ms ease-out 1 both; }
+    .ct-slot:focus-visible .ct-card {
+      border-color: rgba(198, 150, 255, 0.95);
+      box-shadow: 0 0 0 2px rgba(151, 71, 255, 0.55), 0 0 40px rgba(151, 71, 255, 0.4);
+    }
+    .ct-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+    .ct-badge {
+      width: 52px;
+      height: 52px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 14px;
+      border: 1px solid rgba(151, 71, 255, 0.34);
+      background: rgba(151, 71, 255, 0.1);
+      flex-shrink: 0;
+    }
+    .ct-badge img { width: 30px; height: 30px; object-fit: contain; }
+    .ct-index {
+      font-family: var(--font-display);
+      font-size: 13px;
+      color: rgba(151, 71, 255, 0.85);
+    }
+    .ct-avatar {
+      width: 88px;
+      height: 88px;
+      margin: 14px auto 12px;
+      border-radius: 50%;
+      overflow: hidden;
+      flex-shrink: 0;
+      border: 1px solid rgba(151, 71, 255, 0.36);
+      background: radial-gradient(circle at 50% 34%, rgba(151, 71, 255, 0.2), rgba(12, 8, 1, 0.6) 72%);
+      transition: border-color 300ms ease, box-shadow 300ms ease;
+    }
+    .ct-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    /* Editorial block: everything below the avatar is left-aligned. */
+    .ct-platform {
+      margin: 0;
+      font-family: var(--font-display);
+      font-weight: 400;
+      text-transform: uppercase;
+      letter-spacing: -0.01em;
+      font-size: 21px;
+      line-height: 1.1;
+      color: #fff;
+    }
+    .ct-user {
+      margin-top: 6px;
+      font-family: var(--font-body);
+      font-size: 13.5px;
+      color: rgba(255, 255, 255, 0.84);
+      line-height: 1.3;
+    }
+    .ct-handle {
+      font-family: var(--font-body);
+      font-size: 12px;
+      color: rgba(151, 71, 255, 0.92);
+      line-height: 1.35;
+    }
+    .ct-desc {
+      margin: 9px 0 0;
+      font-family: var(--font-body);
+      font-size: 12px;
+      line-height: 1.5;
+      color: rgba(255, 255, 255, 0.58);
+      transition: color 300ms ease;
+    }
+    .ct-hint {
+      margin-top: auto;
+      align-self: flex-end;
+      font-family: var(--font-body);
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--accent-primary);
+      opacity: 0;
+      transform: translateY(4px);
+      transition: opacity 320ms ease, transform 320ms ease;
+    }
+
+    /* ── Deck navigation ── z-index keeps it above the focus overlay so a nav
+       click while pinned unpins and steps the hand in one press. */
+    .ct-nav {
+      position: relative;
+      z-index: 950;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      /* Wraps rather than overflowing when the content column is very narrow. */
+      flex-wrap: wrap;
+      gap: clamp(8px, 2vw, 18px);
+      padding: 0 8px;
+      transition: transform 300ms cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    /* While a card is pinned the nav pins itself to the foot of the viewport, so
+       it stays reachable (a nav press releases and steps in one go) without
+       sitting on top of the focused card. */
+    .ct-nav.is-floating {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: clamp(18px, 3.5vh, 34px);
+    }
+    .ct-nav-btn {
+      width: 46px;
+      height: 46px;
+      flex: 0 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      border-radius: 50%;
+      cursor: pointer;
+      font-family: var(--font-display);
+      font-size: 19px;
+      line-height: 1;
+      color: var(--accent-primary);
+      border: 1px solid rgba(151, 71, 255, 0.42);
+      background: linear-gradient(172deg, rgba(151, 71, 255, 0.16), rgba(12, 8, 1, 0.8));
+      box-shadow: 0 8px 22px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.07);
+      transition: transform 260ms cubic-bezier(0.22, 1, 0.36, 1), border-color 260ms ease,
+                  box-shadow 260ms ease, color 260ms ease, opacity 260ms ease;
+    }
+    .ct-nav-btn:hover {
+      transform: translateY(-2px) scale(1.06);
+      border-color: rgba(184, 130, 255, 0.85);
+      color: #fff;
+      box-shadow: 0 0 30px rgba(151, 71, 255, 0.42), 0 10px 26px rgba(0, 0, 0, 0.5);
+    }
+    .ct-nav-btn:active { transform: translateY(0) scale(0.97); }
+    .ct-nav-btn:focus-visible {
+      border-color: rgba(198, 150, 255, 0.95);
+      box-shadow: 0 0 0 2px rgba(151, 71, 255, 0.55), 0 0 34px rgba(151, 71, 255, 0.4);
+    }
+    .ct-nav-btn[disabled] { opacity: 0.4; cursor: default; transform: none; }
+    .ct-counter {
+      min-width: 0;
+      flex: 0 1 auto;
+      text-align: center;
+      font-family: var(--font-body);
+      font-size: 12px;
+      letter-spacing: 0.2em;
+      color: rgba(255, 255, 255, 0.55);
+      overflow-wrap: anywhere;
+    }
+    /* Below this the content column is too narrow for the counter to sit beside
+       the arrows; the arrows are what matter, so the counter steps aside. */
+    @media (max-width: 520px) { .ct-counter { display: none; } }
+    /* No url filled in yet — say so rather than offering a link that goes nowhere. */
+    .ct-hint.is-unset { color: rgba(255, 255, 255, 0.34); }
+    @media (prefers-reduced-motion: reduce) {
+      .ct-slot { transition: opacity 200ms ease; }
+      .ct-focus { animation: none; }
+      .ct-focus .ct-shine { animation: none; }
+      .ct-overlay { animation: none; }
+    }
+  </style>
+</helmet>
+
+<!-- ═══ PRELOADER (auto-hides via display:none when done — never blocks clicks) ═══ -->
+<div style="position:fixed; inset:0; z-index:2000; background:#000; display:{{ preloaderDisplay }}; align-items:center; justify-content:center; perspective:1800px; opacity:{{ preloaderOpacity }}; transition:{{ preloaderFadeTransition }};">
+  <sc-if value="{{ showSpinnerCard }}" hint-placeholder-val="{{ true }}">
+    <div style="width:180px; height:252px; border-radius:16px; box-sizing:border-box; background:linear-gradient(180deg, rgba(151,71,255,0.24), rgba(12,8,1,0.96)); border:2px solid rgba(151,71,255,0.55); box-shadow:0 0 70px rgba(151,71,255,0.5); position:relative; animation:{{ spinnerAnimation }};">
+      <span style="position:absolute; top:16px; left:18px; font-family:var(--font-display); font-size:22px; color:var(--accent-primary); line-height:1.1;">A<br>♠</span>
+      <span style="position:absolute; bottom:16px; right:18px; font-family:var(--font-display); font-size:22px; color:var(--accent-primary); line-height:1.1; transform:rotate(180deg);">A<br>♠</span>
+      <span style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-family:var(--font-display); font-size:80px; color:rgba(151,71,255,0.32);">♠</span>
+    </div>
+  </sc-if>
+  <sc-if value="{{ showVoxels }}" hint-placeholder-val="{{ false }}">
+    <div style="position:relative; width:180px; height:252px;">
+      <sc-for list="{{ voxels }}" as="v" hint-placeholder-count="48">
+        <div style="position:absolute; box-sizing:border-box; left:{{ v.left }}px; top:{{ v.top }}px; width:{{ v.w }}px; height:{{ v.h }}px; background:linear-gradient(180deg, rgba(151,71,255,0.24), rgba(12,8,1,0.96)); border:1px solid rgba(151,71,255,0.4); transform:{{ v.transform }}; opacity:{{ v.opacity }}; transition:{{ v.transition }};"></div>
+      </sc-for>
+    </div>
+  </sc-if>
+  </div>
+
+
+<div style="position: relative; min-height: 100vh">
+
+  <!-- ═══ BACKGROUND VIDEOS — replace each src with your own clip ═══
+       up/down/left/right: 25-frame look clips · center: 1-frame rest pose · waterfall: AFK secret -->
+  <div style="position: fixed; inset: 0; z-index: -2; background: radial-gradient(ellipse at 50% 40%, #241534 0%, #0c0801 65%)">
+    <div style="position:absolute; inset:0; opacity:{{ trackingGroupOpacity }}; transition:opacity 900ms cubic-bezier(0.4,0,0.2,1);">
+      <video ref="{{ setUpRef }}" muted="{{ true }}" playsinline="{{ true }}" style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover; opacity:{{ opacityUp }}; z-index:{{ zIndexUp }}; transition:opacity 750ms cubic-bezier(0.45,0,0.2,1); will-change:opacity;" src="https://res.cloudinary.com/sceqewtf/video/upload/v1784120825/idle_look_up_cjnihr.mp4">
+      </video>
+      <video ref="{{ setDownRef }}" muted="{{ true }}" playsinline="{{ true }}" style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover; opacity:{{ opacityDown }}; z-index:{{ zIndexDown }}; transition:opacity 750ms cubic-bezier(0.45,0,0.2,1); will-change:opacity;" src="https://res.cloudinary.com/sceqewtf/video/upload/v1784120825/idle_look_down_an34su.mp4">
+      </video>
+      <video ref="{{ setLeftRef }}" muted="{{ true }}" playsinline="{{ true }}" style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover; opacity:{{ opacityLeft }}; z-index:{{ zIndexLeft }}; transition:opacity 750ms cubic-bezier(0.45,0,0.2,1); will-change:opacity;" src="https://res.cloudinary.com/sceqewtf/video/upload/v1784120825/idle_look_right_c5mmpy.mp4">
+      </video>
+      <video ref="{{ setRightRef }}" muted="{{ true }}" playsinline="{{ true }}" style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover; opacity:{{ opacityRight }}; z-index:{{ zIndexRight }}; transition:opacity 750ms cubic-bezier(0.45,0,0.2,1); will-change:opacity;" src="https://res.cloudinary.com/sceqewtf/video/upload/v1784120825/idle_look_left_ax335j.mp4">
+      </video>
+      <video ref="{{ setCenterRef }}" muted="{{ true }}" loop="{{ true }}" playsinline="{{ true }}" poster="assets/video/idle-look-center-poster.png" style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover; opacity:{{ opacityCenter }}; z-index:{{ zIndexCenter }}; transition:opacity 750ms cubic-bezier(0.45,0,0.2,1); will-change:opacity;" src="https://res.cloudinary.com/sceqewtf/video/upload/v1784204848/0000-0001_uucel2.mp4">
+      </video>
+    </div>
+    <video ref="{{ setWaterfallRef }}" muted="{{ true }}" playsinline="{{ true }}" onEnded="{{ handleWaterfallEnded }}" style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover; opacity:{{ opacityWaterfall }}; z-index:3; transition:opacity 900ms cubic-bezier(0.4,0,0.2,1);" src="assets/video/10000979085.mp4">
+      <source src="assets/video/10000979085.mp4" type="video/mp4">
+    </video>
+  </div>
+  <!-- vignette overlay (pointer-events:none — never blocks clicks) -->
+  <div style="position:fixed; inset:0; z-index:-1; background:radial-gradient(ellipse at 50% 55%, transparent 28%, rgba(12,8,1,0.35) 70%); pointer-events:none;"></div>
+
+  <!-- ═══ TOP NAV (About / Contact) ═══ -->
+
+  <div style="position: fixed; top: 0; left: 0; right: 0; z-index: 10; opacity: {{ chromeOpacity }}; pointer-events: {{ chromePointerEvents }}; transition: opacity 900ms cubic-bezier(0.4,0,0.2,1)">
+    <div style="display:flex; align-items:center; justify-content:space-between; padding:14px 28px; width:100%; box-sizing:border-box; background:var(--surface-glass); backdrop-filter:blur(var(--blur-glass)); -webkit-backdrop-filter:blur(var(--blur-glass)); border:1px solid var(--surface-glass-border); border-radius:0 0 var(--radius-medium) var(--radius-medium); box-shadow:var(--shadow-glass);">
+      <span style="font-family:var(--font-display); font-size:18px; text-transform:uppercase; color:var(--text-primary);">{{ navBrand }}</span>
+      <nav style="display:flex; gap:28px;">
+        <sc-for list="{{ topNavItems }}" as="item" hint-placeholder-count="3">
+          <span class="lx-link" onClick="{{ item.onClick }}" style="font-family:var(--font-body); font-size:14px; color:{{ item.color }}; text-shadow:{{ item.textShadow }}; cursor:pointer;">{{ item.label }}</span>
+        </sc-for>
+      </nav>
+    </div>
+  </div>
+
+  <!-- ═══ SIDEBAR NAV ═══ -->
+  <div style="position: fixed; top: 88px; left: 20px; bottom: 20px; z-index: 10; width: 240px; opacity: {{ chromeOpacity }}; pointer-events: {{ chromePointerEvents }}; transition: opacity 900ms cubic-bezier(0.4,0,0.2,1)">
+    <div style="width:240px; height:100%; box-sizing:border-box; display:flex; flex-direction:column; padding:20px 14px; background:var(--surface-glass-strong); backdrop-filter:blur(var(--blur-glass-strong)); -webkit-backdrop-filter:blur(var(--blur-glass-strong)); border:1px solid var(--surface-glass-border); border-radius:var(--radius-large); box-shadow:var(--shadow-glass);">
+      <div style="display:flex; flex-direction:column; gap:28px;">
+        <div style="font-family:var(--font-display); font-size:20px; text-transform:uppercase; letter-spacing:-0.01em; color:var(--text-primary); padding:0 8px;">{{ sidebarBrand }}</div>
+        <div style="display:flex; flex-direction:column; gap:2px;">
+          <sc-for list="{{ navItems }}" as="item" hint-placeholder-count="5">
+            <div class="lx-nav" onClick="{{ item.onClick }}" style="display:flex; align-items:center; gap:12px; padding:10px 10px; border-radius:var(--radius-small); cursor:pointer; background:{{ item.bg }}; border-left:{{ item.borderLeft }}; transition:background 220ms cubic-bezier(0.4,0,0.2,1);">
+              <div class="lx-nav-icon" style="display:flex; color:{{ item.iconColor }};">
+                <x-import component-from-global-scope="InteractiveMagicPortfolioDesignSystem_3a30b2.Icon" name="{{ item.icon }}" size="{{ 18 }}" hint-size="18px,18px"></x-import>
+              </div>
+              <span class="lx-nav-label" style="font-family:var(--font-body); font-size:14px; color:{{ item.textColor }}; text-shadow:{{ item.textShadow }};">{{ item.label }}</span>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ PAGE SECTIONS — text/data lives in renderVals() in the script below ═══ -->
+  <!-- z-index lifts above the fixed sidebar/top-nav (both 10) only while a contact
+       card is focused, so its overlay can cover them the way a focus layer should.
+       Every other moment it stays at 5 and nothing else changes. -->
+  <main style="position: relative; z-index: {{ mainZIndex }}; min-height: 100vh; padding-left: 300px; display: flex; flex-direction: column; gap: 60px; box-sizing: border-box">
+    <div style="display:{{ homeDisplay }}; flex-direction:column; gap:60px;">
+      <section style="min-height: 80vh; display: flex; align-items: center; padding-top: 88px; opacity: {{ chromeOpacity }}; pointer-events: {{ chromePointerEvents }}; transition: opacity 900ms cubic-bezier(0.4,0,0.2,1)">
+        <div style="display:flex; flex-direction:column; gap:20px; max-width:460px; padding:0 8px;">
+          <span style="font-family:var(--font-body); font-weight:500; font-size:12px; letter-spacing:0.08em; text-transform:uppercase; color:var(--accent-primary);">{{ eyebrow }}</span>
+          <h1 style="font-family:var(--font-display); font-weight:400; text-transform:uppercase; letter-spacing:-0.01em; font-size:52px; margin:0; color:#fff;">{{ siteName }}</h1>
+          <p style="font-family:var(--font-body); font-size:17px; max-width:400px; color:rgba(255,255,255,0.68); margin:0;">{{ tagline }}</p>
+          <div style="display:flex; gap:14px; margin-top:8px;">
+            <x-import component-from-global-scope="InteractiveMagicPortfolioDesignSystem_3a30b2.Button" rank="A" suit="spade" variant="primary" onClick="{{ goToProjects }}" hint-size="112px,156px">See the Work</x-import>
+            <x-import component-from-global-scope="InteractiveMagicPortfolioDesignSystem_3a30b2.Button" rank="K" suit="heart" variant="secondary" onClick="{{ goToAbout }}" hint-size="112px,156px">About</x-import>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div style="display:{{ projectsDisplay }}; flex-direction:column; gap:28px; padding-top:88px; padding-bottom:60px; opacity:{{ chromeOpacity }}; pointer-events:{{ chromePointerEvents }}; transition:opacity 900ms cubic-bezier(0.4,0,0.2,1);">
+      <div style="display:flex; flex-direction:column; gap:8px; padding:0 8px;">
+        <span style="font-family:var(--font-body); font-weight:500; font-size:12px; letter-spacing:0.08em; text-transform:uppercase; color:var(--accent-primary);">The Deck</span>
+        <h2 style="font-family:var(--font-display); font-weight:400; text-transform:uppercase; letter-spacing:-0.01em; font-size:36px; margin:0; color:#fff;">Projects</h2>
+      </div>
+      <div style="display:flex; gap:22px; flex-wrap:wrap; padding:0 8px; perspective:1200px;">
+        <sc-for list="{{ projects }}" as="p" hint-placeholder-count="4">
+          <div class="lx-card" style="display:flex; flex-direction:column; width:260px; border-radius:var(--radius-medium); overflow:hidden; text-decoration:none; background:var(--surface-card); border:1px solid var(--surface-card-border); box-shadow:var(--shadow-card); cursor:pointer; transform-style:preserve-3d; will-change:transform, box-shadow; transition:transform 400ms var(--ease-out), box-shadow 400ms var(--ease-out);" onMouseEnter="{{ onProjectHover }}" onMouseMove="{{ onProjectMove }}" onMouseLeave="{{ onProjectLeave }}" onClick="{{ p.onOpen }}">
+            <div style="position: relative; height: 300px; border-bottom: 1px solid var(--surface-card-border); overflow: hidden">
+              <!-- ✏️ static project image: set p.image in the projects data to swap the artwork -->
+              <div class="project-art-image" style="position: absolute; inset: 0; background: {{ p.artBg }}; transition: opacity 300ms var(--ease-standard)"></div>
+              <!-- ✏️ hover-loop review video: swap p.previewVideo for a real muted mp4 clip -->
+              <video data-src="{{ p.previewVideo }}" muted="{{ true }}" loop="{{ true }}" playsinline="{{ true }}" preload="none" style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover; opacity:0; transition:opacity 300ms var(--ease-standard); pointer-events:none;"></video>
+              <span style="position:absolute; top:10px; left:12px; font-family:var(--font-display); font-size:18px; color:var(--text-primary); text-shadow:0 2px 8px rgba(0,0,0,0.6); line-height:1;">{{ p.rank }}<br>{{ p.suitGlyphChar }}</span>
+              <span style="position:absolute; bottom:10px; right:12px; font-family:var(--font-display); font-size:18px; color:var(--text-primary); text-shadow:0 2px 8px rgba(0,0,0,0.6); line-height:1; transform:rotate(180deg);">{{ p.rank }}<br>{{ p.suitGlyphChar }}</span>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:12px; padding:16px 18px 20px;">
+              <h3 style="margin:0; font-family:var(--font-display); font-weight:400; font-size:20px; letter-spacing:-0.01em; text-transform:uppercase; color:var(--text-primary);">{{ p.title }}</h3>
+              <div style="display:flex; flex-wrap:wrap; gap:6px;">
+                <sc-for list="{{ p.tags }}" as="t" hint-placeholder-count="2">
+                  <x-import component-from-global-scope="InteractiveMagicPortfolioDesignSystem_3a30b2.Badge" suit="{{ p.suit }}" hint-size="auto,24px">{{ t }}</x-import>
+                </sc-for>
+              </div>
+              <span class="lx-link" style="font-family:var(--font-body); font-size:13px; color:var(--accent-primary);">Reveal the project <span class="lx-nudge">→</span></span>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+
+    <!-- ═══ SKILLS — scroll-driven presentation ═══
+         The track is a tall spacer; its sticky child pins one viewport-sized stage
+         while it scrolls past. Every scene is a layer inside that stage, and
+         _paintSkills() maps scroll progress onto each layer's transform/opacity.
+         Scene copy/order comes from skillGroups in renderVals() below. -->
+    <div style="display:{{ skillsDisplay }}; flex-direction:column; opacity:{{ chromeOpacity }}; pointer-events:{{ chromePointerEvents }}; transition:opacity 900ms cubic-bezier(0.4,0,0.2,1);">
+      <div ref="{{ setSkillsTrackRef }}" style="position:relative; width:100%; height:{{ skillsTrackHeight }};">
+        <div style="position:{{ skillsViewportPosition }}; top:0; width:100%; height:{{ skillsViewportHeight }}; overflow:{{ skillsViewportOverflow }}; display:flex; flex-direction:column; align-items:center; justify-content:center; box-sizing:border-box;">
+
+          <!-- readability scrim — keeps the video visible, lifts the text off it -->
+          <div style="position:absolute; inset:0; pointer-events:none; background:radial-gradient(ellipse at 50% 50%, rgba(12,8,1,0.62) 0%, rgba(12,8,1,0.3) 46%, transparent 74%);"></div>
+
+          <!-- progress rail -->
+          <div class="sk-rail {{ skillsRailClass }}">
+            <div style="position:relative; width:1px; height:clamp(90px,22vh,190px); background:rgba(255,255,255,0.16);">
+              <div ref="{{ setSkillsRailFillRef }}" style="position:absolute; inset:0; transform-origin:top; transform:scaleY(0); background:linear-gradient(180deg, var(--accent-primary), rgba(151,71,255,0.25)); box-shadow:0 0 10px rgba(151,71,255,0.6);"></div>
+            </div>
+            <span ref="{{ setSkillsRailLabelRef }}" style="font-family:var(--font-body); font-size:11px; letter-spacing:0.18em; color:var(--text-muted); writing-mode:vertical-rl;">{{ skillsRailInitialLabel }}</span>
+          </div>
+
+          <!-- ── SCENE 0 · intro ──
+               data-sk-layer marks an element that _paintSkills() drives on its own:
+               each layer is offset by its signed distance from the stack's centre and
+               converges to zero as the scene reaches centre (the skiper31 idea). -->
+          <div data-sk-scene="0" class="sk-scene" style="position:{{ scenePosition }}; inset:{{ sceneInset }}; min-height:{{ sceneMinHeight }}; opacity:{{ sceneInitialOpacity }};">
+            <div data-sk-move class="sk-move sk-stack">
+              <span class="sk-cat" data-sk-layer>The Trick</span>
+              <h2 class="sk-name" data-sk-layer>Technical<br>Skills</h2>
+              <div data-sk-layer style="width:clamp(56px,10vw,120px); height:1px; background:linear-gradient(90deg, transparent, var(--accent-primary), transparent);"></div>
+              <span class="sk-meta" data-sk-layer>Scroll to explore</span>
+              <div data-sk-layer>
+                <div class="sk-hint" style="animation:sk-hint 2.4s ease-in-out infinite; color:var(--accent-primary);">
+                  <svg width="16" height="10" viewBox="0 0 16 10" fill="none"><path d="M1 1l7 7 7-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── SCENES 1…n · chapter markers + one card per skill ── -->
+          <sc-for list="{{ midScenes }}" as="m" hint-placeholder-count="11">
+            <div data-sk-scene="{{ m.index }}" class="sk-scene" style="position:{{ scenePosition }}; inset:{{ sceneInset }}; min-height:{{ sceneMinHeight }}; opacity:{{ sceneInitialOpacity }};">
+              <sc-if value="{{ m.isChapter }}">
+                <div data-sk-move class="sk-move sk-stack">
+                  <sc-if value="{{ m.hasFrom }}">
+                    <span class="sk-meta" data-sk-layer>{{ m.fromLabel }} · {{ m.fromCount }}</span>
+                  </sc-if>
+                  <h2 class="sk-name sk-chapter-name" data-sk-layer>{{ m.title }}</h2>
+                  <div data-sk-layer style="width:clamp(48px,8vw,96px); height:1px; background:linear-gradient(90deg, transparent, var(--accent-primary), transparent);"></div>
+                  <span class="sk-cat" data-sk-layer>{{ m.range }}</span>
+                </div>
+              </sc-if>
+              <sc-if value="{{ m.isSkill }}">
+                <!-- The card moves as one rigid object — no internal fan — so it
+                     reads as a physical card rather than a floating text stack. -->
+                <div data-sk-move class="sk-move sk-card">
+                  <span class="sk-card-rank">{{ m.num }}</span>
+                  <span class="sk-card-rank sk-card-rank-br">{{ m.num }}</span>
+                  <!-- ✏️ ICON SLOT — drop your own file at the path in skillGroups below.
+                       data-src, not src: the raw template sits in the document, so a
+                       literal src="{{ … }}" would 404 before the binding resolves.
+                       _collectSkillEls() promotes data-src → src and hides the <img>
+                       if the file is missing, leaving the empty ring as the slot. -->
+                  <div class="sk-card-icon">
+                    <img data-src="{{ m.icon }}" alt="{{ m.name }}">
+                  </div>
+                  <div class="sk-card-rule"></div>
+                  <h3 class="sk-card-name">{{ m.name }}</h3>
+                  <span class="sk-card-cat">{{ m.category }}</span>
+                </div>
+              </sc-if>
+            </div>
+          </sc-for>
+
+          <!-- ── FINAL SCENE · the whole toolkit, converged ── -->
+          <div data-sk-scene="{{ finalSceneIndex }}" class="sk-scene" style="position:{{ scenePosition }}; inset:{{ sceneInset }}; min-height:{{ sceneMinHeight }}; opacity:{{ sceneInitialOpacity }};">
+            <!-- data-sk-fit: _measureSkills() scales this down if the summary is ever
+                 taller than the stage (narrow viewports stack the grid), so the last
+                 scene can never be clipped by the stage's overflow:hidden. -->
+            <!-- No data-sk-move here: the summary is the destination, and its rows
+                 animate individually, so the wrapper only carries the fit scale. -->
+            <div data-sk-fit style="display:flex; flex-direction:column; align-items:center; gap:clamp(16px,4vh,42px); width:min(980px,100%);">
+              <div data-sk-head="0" class="sk-final-item" style="display:flex; flex-direction:column; align-items:center; gap:10px;">
+                <span class="sk-cat">The Full Hand</span>
+                <h2 class="sk-name sk-chapter-name">Technical Skills</h2>
+              </div>
+              <div class="sk-final-grid">
+                <sc-for list="{{ finalColumns }}" as="col" hint-placeholder-count="3">
+                  <div style="display:flex; flex-direction:column; gap:15px;">
+                    <div data-sk-head="{{ col.headIndex }}" data-sk-col="{{ col.colOffset }}" class="sk-final-item" style="display:flex; flex-direction:column; gap:9px;">
+                      <span class="sk-cat">{{ col.title }}</span>
+                      <div style="height:1px; background:linear-gradient(90deg, rgba(151,71,255,0.55), transparent);"></div>
+                    </div>
+                    <sc-for list="{{ col.items }}" as="it" hint-placeholder-count="3">
+                      <!-- data-sk-k is the skill's 0-based order (Python 0 … Blender 7).
+                           Because the columns are in that same order, offsetting each row
+                           by (k - centre) sends Python/Lua/C in from the left toward the
+                           Programming column, Figma/Blender in from the right, and so on. -->
+                      <div data-sk-k="{{ it.k }}" data-sk-col="{{ col.colOffset }}" data-sk-tilt="{{ it.tilt }}" class="sk-final-item sk-final-row">
+                        <div class="sk-final-chip"><img data-src="{{ it.icon }}" alt=""></div>
+                        <span style="font-family:var(--font-body); font-size:15px; color:rgba(255,255,255,0.86);">{{ it.name }}</span>
+                      </div>
+                    </sc-for>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <div style="display:{{ aboutDisplay }}; flex-direction:column; min-width:0; opacity:{{ chromeOpacity }}; pointer-events:{{ chromePointerEvents }}; transition:opacity 900ms cubic-bezier(0.4,0,0.2,1);">
+      <about-constellation></about-constellation>
+    </div>
+
+    <!-- ═══ CONTACT — a hand of platform cards ═══
+         Idle / hover / pinned is decided by one state machine (contactHovered +
+         contactPinned in state; see contactCards in renderVals). Clicking the
+         stage anywhere outside a card returns the hand to idle. -->
+    <div ref="{{ setContactRootRef }}" onClick="{{ onContactBackdrop }}" style="display:{{ contactDisplay }}; flex-direction:column; gap:18px; padding-top:88px; padding-bottom:40px; opacity:{{ chromeOpacity }}; pointer-events:{{ chromePointerEvents }}; transition:opacity 900ms cubic-bezier(0.4,0,0.2,1);">
+      <div style="display:flex; flex-direction:column; gap:8px; padding:0 8px;">
+        <span style="font-family:var(--font-body); font-weight:500; font-size:12px; letter-spacing:0.08em; text-transform:uppercase; color:var(--accent-primary); overflow-wrap:anywhere;">Off the Record</span>
+        <h2 style="font-family:var(--font-display); font-weight:400; text-transform:uppercase; letter-spacing:-0.01em; font-size:clamp(26px,6vw,36px); margin:0; color:#fff; overflow-wrap:anywhere;">Contact</h2>
+        <span style="font-family:var(--font-body); font-size:14px; color:rgba(255,255,255,0.6); overflow-wrap:anywhere;">{{ contactPrompt }}</span>
+      </div>
+
+      <!-- All seven cards stay mounted; only four sit in the hand at a time.
+           The other three are parked off-stage (right for the ones coming up,
+           left for the one just thrown) so stepping the hand is nothing but a
+           change of transform on persistent elements — that is what makes a
+           card visibly fly out rather than pop away. -->
+      <div class="ct-stage">
+        <div ref="{{ setContactDeckRef }}" class="ct-deck">
+          <sc-for list="{{ contactCards }}" as="c" hint-placeholder-count="7">
+            <div class="ct-slot {{ c.stateClass }}"
+                 tabIndex="{{ c.tabIndex }}"
+                 role="button"
+                 aria-hidden="{{ c.ariaHidden }}"
+                 aria-label="{{ c.ariaLabel }}"
+                 style="transform:{{ c.transform }}; z-index:{{ c.z }}; opacity:{{ c.opacity }}; pointer-events:{{ c.pointerEvents }};"
+                 onPointerEnter="{{ c.onEnter }}"
+                 onPointerLeave="{{ c.onLeave }}"
+                 onClick="{{ c.onClick }}"
+                 onKeyDown="{{ c.onKeyDown }}">
+              <div class="ct-card">
+                <div class="ct-head">
+                  <!-- ✏️ PLATFORM ICON SLOT — assets/contact/icons/<id>.png -->
+                  <div class="ct-badge"><img data-src="{{ c.icon }}" alt=""></div>
+                  <span class="ct-index">{{ c.index }}</span>
+                </div>
+                <!-- ✏️ PROFILE IMAGE SLOT — assets/contact/profile/<id>.png -->
+                <div class="ct-avatar"><img data-src="{{ c.profileImage }}" alt=""></div>
+                <h3 class="ct-platform">{{ c.platform }}</h3>
+                <span class="ct-user">{{ c.username }}</span>
+                <sc-if value="{{ c.hasHandle }}">
+                  <span class="ct-handle">{{ c.handle }}</span>
+                </sc-if>
+                <p class="ct-desc" lang="{{ c.descriptionLang }}">{{ c.description }}</p>
+                <span class="ct-hint {{ c.hintClass }}">{{ c.actionLabel }}</span>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+
+      <div class="ct-nav {{ contactNavClass }}">
+        <button type="button" class="ct-nav-btn" aria-label="Previous contact cards" onClick="{{ onContactPrev }}">←</button>
+        <span class="ct-counter">{{ contactCounter }}</span>
+        <button type="button" class="ct-nav-btn" aria-label="Next contact cards" onClick="{{ onContactNext }}">→</button>
+      </div>
+
+      <!-- ═══ CONTACT focus overlay ═══
+           The pinned card renders here, not in the hand, so the stage's overflow
+           clipping can never cut it off. Fixed to the viewport and padded clear of
+           the top nav, it is always fully visible; the hand stays dimmed behind.
+           It sits inside the section so it inherits the section's display toggle
+           and the AFK chrome fade. -->
+      <sc-if value="{{ contactHasFocus }}">
+      <div class="ct-overlay" onClick="{{ onContactBackdrop }}">
+        <div class="ct-focus"
+             tabIndex="0"
+             role="button"
+             aria-label="{{ contactFocus.ariaLabel }}"
+             onClick="{{ contactFocus.onClick }}"
+             onKeyDown="{{ contactFocus.onKeyDown }}">
+          <div class="ct-card">
+            <div class="ct-shine"></div>
+            <div class="ct-head">
+              <div class="ct-badge"><img data-src="{{ contactFocus.icon }}" alt=""></div>
+              <span class="ct-index">{{ contactFocus.index }}</span>
+            </div>
+            <div class="ct-avatar"><img data-src="{{ contactFocus.profileImage }}" alt=""></div>
+            <h3 class="ct-platform">{{ contactFocus.platform }}</h3>
+            <span class="ct-user">{{ contactFocus.username }}</span>
+            <sc-if value="{{ contactFocus.hasHandle }}">
+              <span class="ct-handle">{{ contactFocus.handle }}</span>
+            </sc-if>
+            <p class="ct-desc" lang="{{ contactFocus.descriptionLang }}">{{ contactFocus.description }}</p>
+            <span class="ct-hint {{ contactFocus.hintClass }}">{{ contactFocus.actionLabel }}</span>
+          </div>
+        </div>
+      </div>
+      </sc-if>
+    </div>
+  </main>
+
+  <!-- ═══ NAV-TRANSITION CARD (pointer-events:none — purely decorative) ═══ -->
+  <div style="position: fixed; inset: 0; z-index: 999; display: flex; align-items: center; justify-content: center; perspective: 2000px; pointer-events: none">
+    <div style="width: 380px; height: 540px; border-radius: 24px; background: linear-gradient(180deg, rgba(151,71,255,0.24), rgba(12,8,1,0.96)); border: 2px solid rgba(151,71,255,0.55); box-shadow: 0 0 90px rgba(151,71,255,0.55), 0 40px 70px rgba(0,0,0,0.65); position: relative; display: flex; align-items: center; justify-content: center; transform: {{ cardTransform }}; opacity: {{ cardOpacity }}; transition: {{ cardTransition }}">
+      <span style="position:absolute; top:26px; left:28px; font-family:var(--font-display); font-size:32px; color:var(--accent-primary); line-height:1.1;">A<br>♠</span>
+      <span style="position:absolute; bottom:26px; right:28px; font-family:var(--font-display); font-size:32px; color:var(--accent-primary); line-height:1.1; transform:rotate(180deg);">A<br>♠</span>
+      <span style="font-family:var(--font-display); font-size:130px; color:rgba(151,71,255,0.32);">♠</span>
+    </div>
+  </div>
+</div>
+
+  <!-- ═══ PROJECT DETAIL MODAL ═══ -->
+  <div style="position:fixed; inset:0; z-index:1500; display:{{ modalDisplay }}; align-items:center; justify-content:center; padding:40px; box-sizing:border-box;" onClick="{{ closeProjectModal }}">
+    <div style="position:absolute; inset:0; background:rgba(12,8,1,0.78); opacity:{{ modalBackdropOpacity }}; transition:opacity 320ms var(--ease-standard);"></div>
+    <div style="position:relative; width:min(720px, 100%); max-height:86vh; overflow-y:auto; display:flex; flex-direction:column; background:var(--surface-glass); backdrop-filter:blur(var(--blur-glass-strong)); -webkit-backdrop-filter:blur(var(--blur-glass-strong)); border:1px solid var(--surface-glass-border); border-radius:var(--radius-medium); box-shadow:var(--shadow-glass), var(--shadow-glow); opacity:{{ modalContentOpacity }}; transform:{{ modalContentTransform }}; transition:opacity 320ms var(--ease-standard), transform 320ms var(--ease-out);" onClick="{{ stopModalContentClick }}">
+      <button type="button" class="lx-icon-btn" aria-label="Close project" onClick="{{ closeProjectModal }}" style="position:absolute; top:16px; right:16px; z-index:2; width:36px; height:36px;">
+        <x-import component-from-global-scope="InteractiveMagicPortfolioDesignSystem_3a30b2.Icon" name="Close" size="{{ 16 }}" hint-size="16px,16px"></x-import>
+      </button>
+      <div style="position:relative; height:380px; overflow:hidden; background:rgba(12,8,1,0.4); transition:background 260ms var(--ease-standard); flex-shrink:0;" onMouseEnter="{{ pauseCarouselAuto }}" onMouseLeave="{{ resumeCarouselAuto }}">
+        <sc-for list="{{ modalSlides }}" as="slide" hint-placeholder-count="3">
+          <div onClick="{{ slide.onClick }}" style="position:absolute; top:50%; left:50%; width:68%; height:86%; border-radius:var(--radius-medium); background:{{ slide.bg }}; box-shadow:{{ slide.shadow }}; opacity:{{ slide.opacity }}; z-index:{{ slide.z }}; pointer-events:{{ slide.pointerEvents }}; cursor:{{ slide.cursor }}; transform:{{ slide.transform }}; transition:all 0.5s ease-in-out;"></div>
+        </sc-for>
+        <sc-if value="{{ modalHasMultipleSlides }}">
+          <button type="button" class="lx-icon-btn" aria-label="Previous image" onClick="{{ prevSlide }}" style="position:absolute; top:50%; left:14px; transform:translateY(-50%); width:40px; height:40px; font-family:var(--font-display); font-size:20px; z-index:10;">‹</button>
+          <button type="button" class="lx-icon-btn" aria-label="Next image" onClick="{{ nextSlide }}" style="position:absolute; top:50%; right:14px; transform:translateY(-50%); width:40px; height:40px; font-family:var(--font-display); font-size:20px; z-index:10;">›</button>
+          <span style="position:absolute; bottom:14px; right:16px; font-family:var(--font-body); font-size:12px; color:rgba(255,255,255,0.7); background:rgba(12,8,1,0.5); padding:3px 10px; border-radius:999px; z-index:10;">{{ modalSlideCount }}</span>
+        </sc-if>
+      </div>
+      <sc-if value="{{ modalHasMultipleSlides }}">
+        <div style="display:flex; gap:6px; padding:14px 32px 0;">
+          <sc-for list="{{ modalDots }}" as="dot" hint-placeholder-count="2">
+            <div class="lx-dot" onClick="{{ dot.onClick }}" style="flex:1; height:3px; border-radius:999px; overflow:hidden; cursor:pointer;">
+              <sc-if value="{{ dot.active }}">
+                <div key="{{ modalCarouselKey }}" style="height:100%; width:0%; background:var(--accent-primary); box-shadow:0 0 6px rgba(151,71,255,0.7); animation:carousel-fill 5000ms linear forwards; animation-play-state:{{ modalCarouselPlayState }};"></div>
+              </sc-if>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+      <div style="display:flex; flex-direction:column; gap:16px; padding:28px 32px 32px;">
+        <div style="display:flex; flex-direction:column; gap:10px;">
+          <h2 style="margin:0; font-family:var(--font-display); font-weight:400; text-transform:uppercase; letter-spacing:-0.01em; font-size:32px; color:#fff;">{{ modalTitle }}</h2>
+          <p lang="{{ modalDescriptionLang }}" style="margin:0; font-family:var(--font-body); font-size:15px; line-height:1.6; color:rgba(255,255,255,0.72); max-width:560px;">{{ modalDescription }}</p>
+          <sc-if value="{{ modalHasLink }}">
+            <a class="lx-link" href="{{ modalLink }}" target="_blank" rel="noopener noreferrer" style="font-family:var(--font-body); font-size:14px; font-weight:500; color:var(--accent-primary); text-decoration:none; width:fit-content;">{{ modalLinkLabel }}<svg class="lx-arrow" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M1.004 9.166 9.337.833m0 0v8.333m0-8.333H1.004" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+          </sc-if>
+        </div>
+        <div style="display:flex; flex-wrap:wrap; gap:8px;">
+          <sc-for list="{{ modalTags }}" as="t" hint-placeholder-count="3">
+            <x-import component-from-global-scope="InteractiveMagicPortfolioDesignSystem_3a30b2.Badge" suit="{{ modalSuit }}" hint-size="auto,26px">{{ t }}</x-import>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:860},&quot;siteName&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Phattarakul&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;navBrand&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Phattarakul Saklor&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;sidebarBrand&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Portfolio&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;role&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Game Developer&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;eyebrow&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Portfolio&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;tagline&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Hard Doesn't Mean Impossible&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;navLinks&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;About, Contact&quot;,&quot;tsType&quot;:&quot;string&quot;}}">
+class Component extends DCLogic {
+  state = {
+    idle: false,
+    zone: 'center',
+    displayKey: 'center',
+    fadingOutKey: null,
+    activeSection: 'home',
+    cardPhase: 'idle',
+    preloaderPhase: 'spinning',
+    voxels: [],
+    voxelsScattered: false,
+    projectModalIndex: null,
+    modalPhase: 'closed',
+    carouselIndex: 0,
+    carouselPaused: false,
+    // Contact deck. Three layers: which four cards are in the hand
+    // (contactStart), which one is hovered, and which one is pinned.
+    contactHovered: null,
+    contactPinned: null,
+    contactStart: 0,
+    contactAnimating: false,
+  };
+
+  // 🃏 CONTACT HAND — four positions, hand-composed rather than a formula.
+  // at:    [x, y, rotation°, scale] resting place in the hand
+  // hover: [dx, dy, dRotation°, dScale] added when the card is picked up —
+  //        outer cards lean further out, inner ones mostly rise.
+  _ctHand = [
+    { at: [-192,  26, -13.0, 0.95], hover: [-26, -40,  5.0, 0.10] },
+    { at: [ -64,  -8,  -4.5, 0.99], hover: [ -9, -46,  2.0, 0.08] },
+    { at: [  64,  -6,   5.0, 0.99], hover: [  9, -46, -2.0, 0.08] },
+    { at: [ 192,  30,  13.5, 0.95], hover: [ 26, -40, -5.0, 0.10] },
+  ];
+  // Where cards wait when they are not in the hand. Anything ahead of the hand
+  // parks right; the card just thrown parks left. Because every card stays
+  // mounted, stepping the hand is only a transform change — so the outgoing card
+  // visibly drifts, tilts, shrinks and fades on its way out of frame.
+  _ctOff = {
+    right: [ 520,  74,  30, 0.72],
+    left:  [-520,  74, -30, 0.72],
+  };
+  // How far the hand recedes while a card is pinned in the overlay.
+  _ctRecede = { drop: 30, scale: 0.9, opacity: 0.34 };
+  _CT_HAND_SIZE = 4;
+  _CT_NAV_MS = 640;
+
+  // A class field, not componentDidMount: renderVals() runs before mount, and it
+  // needs this to choose between the scroll rig and the plain stacked fallback.
+  _reducedMotion = typeof window !== 'undefined'
+    && typeof window.matchMedia === 'function'
+    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // 🎚️ SKILLS MOTION — every value below is a pure function of scroll position.
+  // A scene's phase φ runs -SPAN (before it arrives) → 0 (its resting pose) → +SPAN.
+  // Nothing has a flat hold, so stopping mid-scroll shows a half-played frame.
+  _sk = {
+    SPAN_IN: 1.25,    // phases a card spends drifting in — >1 so the next one peeks
+    SPAN_OUT: 1.25,   // and the previous one is still leaving. Up to 3 cards on stage.
+    FADE_IN_POW: 1.5, // incoming stays dimmer than the focus card, but present
+    FADE_OUT_POW: 1.35,
+    SPREAD_X: 34,     // per-layer fan — text scenes only; cards move rigidly
+    SPREAD_Y: 24,
+    SPIN: 1.3,
+    OVERSHOOT: 1.16,  // cards drift a touch past their pose, then settle back
+    FINAL_X: 54,      // summary assembly — the CharacterV2 formula from skiper31
+    FINAL_Y: 44,
+    FINAL_SCALE: 0.34,
+    FINAL_SPIN: 9,    // rows straighten out of their card tilt as they file in
+  };
+
+  // 🃏 CARD CHOREOGRAPHY — one entry per skill, in order 01…08.
+  // [x, y, rotation°, scale] for where the card drifts in FROM, the pose it RESTS
+  // in, and where it drifts out TO. Rest poses are deliberately off-centre and
+  // unevenly tilted: no two cards arrive the same way, land in the same spot, or
+  // leave along the same arc. Hand-tuned, not generated — edit freely.
+  _cardChoreo = [
+    /* 01 Python   */ { in: [ 330,  360, -13, 0.70], rest: [ -46, -20,  -3.2, 1.00], out: [-400, -300,  -9, 0.66] },
+    /* 02 Lua      */ { in: [-360,  280,  15, 0.68], rest: [  74,  30,   4.4, 0.98], out: [ 420, -280,  12, 0.64] },
+    /* 03 C        */ { in: [  70, -430,  -7, 0.74], rest: [ -14,  46,  -5.6, 1.02], out: [-430,  200, -15, 0.68] },
+    /* 04 Godot    */ { in: [ 400,  -70,  11, 0.72], rest: [  56, -38,   5.2, 1.00], out: [  50, -430,   3, 0.70] },
+    /* 05 Unreal   */ { in: [-400, -200, -10, 0.70], rest: [ -70,  12,  -4.4, 0.99], out: [ 430,  250,  13, 0.66] },
+    /* 06 Roblox   */ { in: [  26,  450,   8, 0.76], rest: [  30,  48,   2.6, 1.01], out: [-410, -230,  -8, 0.67] },
+    /* 07 Figma    */ { in: [ 350,  230, -15, 0.69], rest: [ -58, -32,  -6.2, 1.00], out: [-370,  310,  11, 0.65] },
+    /* 08 Blender  */ { in: [-320, -330,  12, 0.73], rest: [  44,  24,   4.0, 0.99], out: [ 400, -270,  -7, 0.66] },
+  ];
+
+  // Text scenes (intro + the three chapter markers) drift too, but gently — they
+  // are titles, not cards, so they stay near centre and barely tilt.
+  _textChoreo = [
+    { in: [ 130,  190,  -2, 0.88], rest: [0, 0, 0, 1], out: [-190, -210,   3, 0.86] },
+    { in: [-210,  150,   3, 0.88], rest: [0, 0, 0, 1], out: [ 200, -180,  -3, 0.86] },
+    { in: [ 190, -170,  -3, 0.88], rest: [0, 0, 0, 1], out: [-170,  200,   3, 0.86] },
+    { in: [-160,  200,   2, 0.88], rest: [0, 0, 0, 1], out: [ 210, -160,  -2, 0.86] },
+  ];
+
+  componentDidMount() {
+    // ── Skills scroll presentation ──────────────────────────────────────────
+    // One passive scroll listener, coalesced into a single rAF. The frame only
+    // reads window.pageYOffset (track geometry is cached by _measureSkills) and
+    // then writes transform/opacity, so no frame ever forces a layout.
+    if (typeof window.matchMedia === 'function') {
+      this._motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+      this._onMotionPrefChange = (e) => {
+        this._reducedMotion = e.matches;
+        this.forceUpdate();
+        // forceUpdate is async — re-measure only once the new track has laid out.
+        requestAnimationFrame(() => {
+          if (this.state.activeSection === 'skills') this._enterSkills();
+        });
+      };
+      if (this._motionQuery.addEventListener) this._motionQuery.addEventListener('change', this._onMotionPrefChange);
+    }
+    this._lastSection = this.state.activeSection;
+    this._onSkillsScroll = () => {
+      if (this._skillsRAF) return;
+      this._skillsRAF = requestAnimationFrame(() => {
+        this._skillsRAF = 0;
+        this._paintSkills();
+      });
+    };
+    this._onSkillsResize = () => {
+      this._measureSkills();
+      this._paintSkills();
+      this._fitContactDeck();
+    };
+    window.addEventListener('scroll', this._onSkillsScroll, { passive: true });
+    window.addEventListener('resize', this._onSkillsResize);
+    if (this.state.activeSection === 'skills') this._enterSkills();
+
+    // Contact deck: a click anywhere that is not a card returns the hand to idle.
+    // Card clicks call stopPropagation, so they never reach this listener.
+    this._onDocClick = () => {
+      if (this.state.contactPinned !== null) this.closeContact();
+    };
+    this._onDocKeydown = (e) => {
+      if (e.key === 'Escape' && this.state.contactPinned !== null) { this.closeContact(); return; }
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') this._onContactArrowKey(e);
+    };
+    window.addEventListener('click', this._onDocClick);
+    window.addEventListener('keydown', this._onDocKeydown);
+    if (this.state.activeSection === 'contact') this._enterContact();
+
+    this._preloaderMinElapsed = false;
+    this._siteLoaded = document.readyState === 'complete';
+    this._minTimer = setTimeout(() => {
+      this._preloaderMinElapsed = true;
+      this._maybeShatter();
+    }, 1200);
+    if (this._siteLoaded) {
+      this._maybeShatter();
+    } else {
+      this._onWindowLoad = () => {
+        this._siteLoaded = true;
+        this._maybeShatter();
+      };
+      window.addEventListener('load', this._onWindowLoad, { once: true });
+    }
+  }
+
+  componentDidUpdate() {
+    // The focus overlay mounts its own <img> slots after the section is already
+    // open, so promote them here too (the helper skips ones already resolved).
+    if (this.state.activeSection === 'contact') this._promoteImages(this._contactRootRef);
+    // Section swaps happen behind the full-screen transition card, so resetting
+    // the scroll position here is invisible — and the Skills track has to start
+    // at progress 0 for the presentation to read from the top.
+    if (this._lastSection === this.state.activeSection) return;
+    this._lastSection = this.state.activeSection;
+    window.scrollTo(0, 0);
+    // The AFK reveal belongs to Home alone: arm its timer on arrival there, and
+    // on the way out drop any idle state so another section never inherits a
+    // faded-out page or a running waterfall clip.
+    this._resetTimer();
+    if (this.state.activeSection === 'skills') this._enterSkills();
+    if (this.state.activeSection === 'contact') this._enterContact();
+    // Leaving Contact drops any selection so it is idle when you come back.
+    else if (this.state.contactPinned !== null || this.state.contactHovered !== null) {
+      this.setState({ contactPinned: null, contactHovered: null });
+    }
+  }
+
+  _enterContact() {
+    this._promoteImages(this._contactRootRef);
+    this._fitContactDeck();
+  }
+
+  // The fan is authored at full size; scale it as a whole so the same hand-tuned
+  // coordinates work on a laptop or a phone without re-authoring anything.
+  _fitContactDeck() {
+    const deck = this._contactDeckRef;
+    const stage = deck && deck.parentElement;
+    if (!deck || !stage) return;
+    // Measure the box the hand actually needs, on both axes, from the pose table
+    // itself — including the LIFTED pose (hover raises and enlarges a card) and
+    // the way rotation widens a card's axis-aligned footprint. Estimating this by
+    // hand is what let a hovered card poke through the stage and get clipped, and
+    // deriving it means edits to _ctHand stay fitted automatically.
+    const CARD_W = 244;
+    const CARD_H = 352;
+    let halfW = 0;
+    let halfH = 0;
+    const consider = (x, y, rot, s) => {
+      const a = Math.abs(rot) * Math.PI / 180;
+      const cos = Math.cos(a);
+      const sin = Math.sin(a);
+      halfW = Math.max(halfW, Math.abs(x) + (CARD_W * cos + CARD_H * sin) * s / 2);
+      halfH = Math.max(halfH, Math.abs(y) + (CARD_W * sin + CARD_H * cos) * s / 2);
+    };
+    this._ctHand.forEach((p) => {
+      consider(p.at[0], p.at[1], p.at[2], p.at[3]);
+      consider(p.at[0] + p.hover[0], p.at[1] + p.hover[1], p.at[2] + p.hover[2], p.at[3] + p.hover[3]);
+    });
+    const scale = Math.max(0.4, Math.min(
+      1,
+      (stage.clientWidth - 16) / (halfW * 2),
+      (stage.clientHeight - 12) / (halfH * 2),
+    ));
+    deck.style.transform = `scale(${scale.toFixed(3)})`;
+  }
+
+  // Shared by the skills and contact decks: promote the coded path onto the
+  // <img>, and hide the image if the file is not there yet so the empty slot
+  // shows through rather than a broken-image glyph.
+  _promoteImages(root) {
+    if (!root) return;
+    root.querySelectorAll('img[data-src]').forEach((img) => {
+      const src = img.getAttribute('data-src');
+      if (!src || img.getAttribute('src') === src) return;
+      img.onerror = () => { img.style.visibility = 'hidden'; };
+      img.onload = () => { img.style.visibility = ''; };
+      img.setAttribute('src', src);
+    });
+  }
+
+  // Re-collect + re-measure: the section is display:none until it's active, so
+  // its geometry only exists once it has been shown.
+  _enterSkills() {
+    this._collectSkillEls();
+    this._observeSkillsTrack();
+    this._measureSkills();
+    this._paintSkills();
+  }
+
+  // The cached track geometry goes stale whenever the track resizes — a window
+  // resize, a late webfont, or the reduced-motion toggle swapping the tall track
+  // for the stacked one. Observing the element catches all of them, and costs
+  // nothing per frame (unlike re-measuring inside the scroll handler).
+  _observeSkillsTrack() {
+    if (typeof ResizeObserver !== 'function' || !this._skillsTrackRef) return;
+    if (!this._skillsRO) {
+      this._skillsRO = new ResizeObserver(() => {
+        this._measureSkills();
+        this._paintSkills();
+      });
+    }
+    if (this._skillsObserved === this._skillsTrackRef) return;
+    this._skillsRO.disconnect();
+    this._skillsRO.observe(this._skillsTrackRef);
+    this._skillsObserved = this._skillsTrackRef;
+  }
+
+  _collectSkillEls() {
+    const root = this._skillsTrackRef;
+    if (!root) return;
+    const num = (el, attr, dflt) => {
+      const v = parseFloat(el.getAttribute(attr));
+      return Number.isFinite(v) ? v : dflt;
+    };
+
+    const scenes = [];
+    const layers = [];
+    const movers = [];
+    root.querySelectorAll('[data-sk-scene]').forEach((el) => {
+      const i = Number(el.getAttribute('data-sk-scene'));
+      scenes[i] = el;
+      movers[i] = el.querySelector('[data-sk-move]');
+      // Each layer's signed distance from the stack's centre — the same
+      // (index - centerIndex) term the reference uses per character.
+      const nodes = Array.prototype.slice.call(el.querySelectorAll('[data-sk-layer]'));
+      const centre = (nodes.length - 1) / 2;
+      layers[i] = nodes.map((lel, j) => ({ el: lel, d: j - centre }));
+    });
+    this._skillSceneEls = scenes;
+    this._skillLayerEls = layers;
+    this._skillMoverEls = movers;
+    this._skillZ = [];
+
+    // Summary rows keyed by skill order (0…7); d is their distance from the
+    // middle of that run, which is also their column's direction.
+    const rowEls = Array.prototype.slice.call(root.querySelectorAll('[data-sk-k]'));
+    const rowCentre = (rowEls.length - 1) / 2;
+    this._skillFinalRows = rowEls
+      .map((el) => ({ el, k: num(el, 'data-sk-k', 0), col: num(el, 'data-sk-col', 0), tilt: num(el, 'data-sk-tilt', 0) }))
+      .sort((a, b) => a.k - b.k)
+      .map((r) => ({ ...r, d: r.k - rowCentre }));
+    this._skillFinalHeads = Array.prototype.map.call(
+      root.querySelectorAll('[data-sk-head]'),
+      (el) => ({ el, hi: num(el, 'data-sk-head', 0), col: num(el, 'data-sk-col', 0) }),
+    );
+    this._skillsLastU = null;
+
+    // A missing file just hides the image and leaves the empty ring as the slot
+    // — never a stand-in graphic.
+    this._promoteImages(root);
+  }
+
+  _measureSkills() {
+    const el = this._skillsTrackRef;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    this._skillsTop = rect.top + window.pageYOffset;
+    // The sticky child pins for exactly (track height - one viewport) of scroll.
+    this._skillsLen = Math.max(1, rect.height - window.innerHeight);
+
+    // Fit guard for the summary — the only layout read in the whole rig, and it
+    // runs on enter/resize rather than per frame. scrollHeight ignores the
+    // per-item transforms, so it measures the settled layout.
+    const fitEl = el.querySelector('[data-sk-fit]');
+    const scene = fitEl && fitEl.parentElement;
+    if (fitEl && scene) {
+      fitEl.style.transform = 'none';
+      const cs = window.getComputedStyle(scene);
+      const avail = scene.clientHeight - parseFloat(cs.paddingTop || 0) - parseFloat(cs.paddingBottom || 0);
+      const need = fitEl.scrollHeight;
+      const fit = (avail > 0 && need > avail) ? Math.max(0.5, avail / need) : 1;
+      if (fit < 1) fitEl.style.transform = `scale(${fit.toFixed(3)})`;
+    }
+  }
+
+  _paintSkills() {
+    if (this.state.activeSection !== 'skills') return;
+    const scenes = this._skillSceneEls;
+    if (!scenes || !scenes.length) return;
+    const rows = this._skillFinalRows || [];
+    const heads = this._skillFinalHeads || [];
+
+    // Reduced motion: no scroll choreography at all — the track renders as a
+    // plain stacked read-through (see scenePosition/skillsTrackHeight below).
+    if (this._reducedMotion) {
+      scenes.forEach((el, i) => {
+        if (!el) return;
+        el.style.opacity = '1';
+        el.style.transform = 'none';
+        el.style.visibility = 'visible';
+        el.style.zIndex = '';
+        const mover = (this._skillMoverEls || [])[i];
+        if (mover) mover.style.transform = 'none';
+        (this._skillLayerEls[i] || []).forEach((l) => { l.el.style.transform = 'none'; });
+      });
+      rows.concat(heads).forEach(({ el }) => { el.style.transform = 'none'; el.style.opacity = '1'; });
+      return;
+    }
+
+    const K = this._sk;
+    const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
+    const smooth = (t) => t * t * (3 - 2 * t);
+    const count = scenes.length;
+    const p = clamp((window.pageYOffset - this._skillsTop) / this._skillsLen, 0, 1);
+    const pos = p * (count - 1 + this._skillsTailUnits);
+
+    // Slight overshoot on the way in — the card drifts a touch past its pose and
+    // eases back, which is what makes it read as landing rather than sliding.
+    const settle = (t) => {
+      const s = smooth(t);
+      return s + (K.OVERSHOOT - 1) * Math.sin(Math.PI * s) * (1 - s);
+    };
+    const lerp = (a, b, t) => a + (b - a) * t;
+
+    for (let i = 0; i < count; i++) {
+      const el = scenes[i];
+      if (!el) continue;
+      // The summary is the destination — it never travels back out, so its phase
+      // stops at 0 and it simply stays assembled for the tail of the track.
+      let phi = pos - i;
+      if (i === count - 1 && phi > 0) phi = 0;
+      const span = phi < 0 ? K.SPAN_IN : K.SPAN_OUT;
+      const a = Math.abs(phi);
+      if (a >= span) {
+        if (el.style.visibility !== 'hidden') {
+          el.style.visibility = 'hidden';
+          el.style.opacity = '0';
+        }
+        continue;
+      }
+      if (el.style.visibility === 'hidden') el.style.visibility = 'visible';
+
+      // Incoming stays dim well into its approach so it reads as a card peeking in
+      // from the edge; outgoing lingers as it drifts away. Both curves are gentle
+      // enough that up to three cards share the stage as a loose deck.
+      const t = 1 - a / span;
+      const op = Math.pow(t, phi < 0 ? K.FADE_IN_POW : K.FADE_OUT_POW);
+      el.style.opacity = op.toFixed(3);
+
+      // The focus card sits on top of whatever is drifting past it.
+      const z = 100 - Math.round(a * 40);
+      if (this._skillZ[i] !== z) {
+        this._skillZ[i] = z;
+        el.style.zIndex = String(z);
+      }
+
+      // Each scene rides its own arc: in → rest → out, from the choreography table.
+      const mover = this._skillMoverEls[i];
+      const c = this._skillChoreo[i];
+      if (mover && c) {
+        const from = phi < 0 ? c.in : c.out;
+        // t is 1 at the resting pose and 0 at the far edge, so w is the weight
+        // toward the off-stage pose: 0 = landed, 1 = fully away.
+        const w = 1 - (phi < 0 ? settle(t) : smooth(t));
+        mover.style.transform =
+          `translate3d(${lerp(c.rest[0], from[0], w).toFixed(2)}px, ${lerp(c.rest[1], from[1], w).toFixed(2)}px, 0)` +
+          ` rotate(${lerp(c.rest[2], from[2], w).toFixed(3)}deg)` +
+          ` scale(${lerp(c.rest[3], from[3], w).toFixed(4)})`;
+      }
+
+      // Per-layer fan, text scenes only — cards move rigidly, as a card should.
+      const layers = this._skillLayerEls[i];
+      if (layers) {
+        for (let j = 0; j < layers.length; j++) {
+          const { el: lel, d } = layers[j];
+          lel.style.transform = `translate3d(${(phi * K.SPREAD_X * d).toFixed(2)}px, ${(phi * K.SPREAD_Y * d).toFixed(2)}px, 0) rotate(${(phi * K.SPIN * d).toFixed(3)}deg)`;
+        }
+      }
+    }
+
+    // ── Summary assembly ──
+    // u goes 1 → 0 across the final scene's whole approach, so the eight rows are
+    // visibly in flight the entire time the summary is on screen, then settle.
+    const u = clamp(-(pos - (count - 1)), 0, 1);
+    if (u !== this._skillsLastU) {
+      this._skillsLastU = u;
+      const e = smooth(u);
+      for (let k = 0; k < rows.length; k++) {
+        const { el, d, tilt } = rows[k];
+        // Each row arrives still holding its card's tilt and straightens as it
+        // files into the column — the deck tidying itself away.
+        const rot = (tilt + (d < 0 ? -K.FINAL_SPIN : K.FINAL_SPIN) * 0.5) * e;
+        el.style.transform =
+          `translate3d(${(d * K.FINAL_X * e).toFixed(2)}px, ${(Math.abs(d) * K.FINAL_Y * e).toFixed(2)}px, 0)` +
+          ` rotate(${rot.toFixed(3)}deg) scale(${(1 - K.FINAL_SCALE * e).toFixed(4)})`;
+      }
+      for (let k = 0; k < heads.length; k++) {
+        const { el, col, hi } = heads[k];
+        const dx = hi === 0 ? 0 : col * K.FINAL_X * 1.4;
+        const dy = hi === 0 ? -K.FINAL_Y : K.FINAL_Y * 0.6;
+        el.style.transform = `translate3d(${(dx * e).toFixed(2)}px, ${(dy * e).toFixed(2)}px, 0) scale(${(1 - 0.18 * e).toFixed(4)})`;
+      }
+    }
+
+    if (this._skillsRailFillRef) this._skillsRailFillRef.style.transform = `scaleY(${p.toFixed(4)})`;
+    if (this._skillsRailLabelRef) {
+      const label = (this._skillsRailLabels || [])[Math.min(count - 1, Math.max(0, Math.round(pos)))] || '';
+      if (this._skillsRailLabelLast !== label) {
+        this._skillsRailLabelLast = label;
+        this._skillsRailLabelRef.textContent = label;
+      }
+    }
+  }
+
+  componentWillUnmount() {
+    if (this._skillsRAF) cancelAnimationFrame(this._skillsRAF);
+    if (this._tiltRAF) cancelAnimationFrame(this._tiltRAF);
+    if (this._skillsRO) this._skillsRO.disconnect();
+    if (this._onSkillsScroll) window.removeEventListener('scroll', this._onSkillsScroll);
+    if (this._onSkillsResize) window.removeEventListener('resize', this._onSkillsResize);
+    if (this._onDocClick) window.removeEventListener('click', this._onDocClick);
+    if (this._onDocKeydown) window.removeEventListener('keydown', this._onDocKeydown);
+    clearTimeout(this._ctNavTimeout);
+    if (this._motionQuery && this._onMotionPrefChange && this._motionQuery.removeEventListener) {
+      this._motionQuery.removeEventListener('change', this._onMotionPrefChange);
+    }
+    clearTimeout(this._idleTimeout);
+    clearTimeout(this._waterfallStartTimeout);
+    clearTimeout(this._fadeClearTimeout);
+    clearTimeout(this._navTimeout1);
+    clearTimeout(this._navTimeout2);
+    clearTimeout(this._navTimeout3);
+    clearTimeout(this._minTimer);
+    clearTimeout(this._shatterTimeout);
+    clearTimeout(this._enterTimeout);
+    this._cancelReverse();
+    if (this._onWindowLoad) window.removeEventListener('load', this._onWindowLoad);
+    if (this._onActivity) {
+      ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll', 'wheel'].forEach((evt) => {
+        window.removeEventListener(evt, this._onActivity);
+      });
+    }
+    clearInterval(this._carouselInterval);
+    if (this._onModalKeydown) window.removeEventListener('keydown', this._onModalKeydown);
+  }
+
+  _maybeShatter() {
+    if (this._siteLoaded && this._preloaderMinElapsed && this.state.preloaderPhase === 'spinning') {
+      this._startShatter();
+    }
+  }
+
+  _startShatter() {
+    const cols = 6;
+    const rows = 8;
+    const w = 180;
+    const h = 252;
+    const pieceW = w / cols;
+    const pieceH = h / rows;
+    const voxels = [];
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const theta = Math.random() * Math.PI * 2;
+        const dist = 80 + Math.random() * 260;
+        voxels.push({
+          left: Math.round(c * pieceW * 100) / 100,
+          top: Math.round(r * pieceH * 100) / 100,
+          w: Math.round(pieceW * 100) / 100,
+          h: Math.round(pieceH * 100) / 100,
+          tx: Math.round(Math.cos(theta) * dist),
+          ty: Math.round(Math.sin(theta) * dist),
+          rot: Math.round((Math.random() - 0.5) * 720),
+          delay: Math.round(Math.random() * 160),
+        });
+      }
+    }
+    this.setState({ preloaderPhase: 'shattering', voxels, voxelsScattered: false });
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        this.setState({ voxelsScattered: true });
+      });
+    });
+    this._shatterTimeout = setTimeout(() => {
+      this.setState({ preloaderPhase: 'entering' });
+      this._enterTimeout = setTimeout(() => {
+        this.setState({ preloaderPhase: 'done' });
+        this._activateSite();
+      }, 700);
+    }, 1100);
+  }
+
+  _activateSite() {
+    if (this._siteActivated) return;
+    this._siteActivated = true;
+    this._onActivity = (e) => {
+      this._resetTimer();
+      if (e.type === 'mousemove') this._onMouseMove(e);
+    };
+    ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll', 'wheel'].forEach((evt) => {
+      window.addEventListener(evt, this._onActivity, { passive: true });
+    });
+    this._resetTimer();
+    if (this._centerRef) {
+      this._centerRef.currentTime = 0;
+      this._centerRef.play().catch(() => {});
+    }
+  }
+
+  navigateTo(key) {
+    if (this._navigating || this.state.activeSection === key) return;
+    this._navigating = true;
+    this.setState({ cardPhase: 'in' });
+    this._navTimeout1 = setTimeout(() => {
+      this.setState({ activeSection: key, cardPhase: 'cover' });
+      this._navTimeout2 = setTimeout(() => {
+        this.setState({ cardPhase: 'out' });
+        this._navTimeout3 = setTimeout(() => {
+          this.setState({ cardPhase: 'idle' });
+          this._navigating = false;
+        }, 520);
+      }, 160);
+    }, 480);
+  }
+
+  _dirRef(key) {
+    return { up: this._upRef, down: this._downRef, left: this._leftRef, right: this._rightRef, center: this._centerRef }[key];
+  }
+
+  _handleWaterfallEnded() {
+    if (this._waterfallRef) this._waterfallRef.pause();
+    this._resetTimer();
+  }
+
+  _resetTimer() {
+    if (this.state.idle) {
+      this.setState({ idle: false });
+      this._resumeDisplay();
+      if (this._waterfallRef) this._waterfallRef.pause();
+    }
+    clearTimeout(this._idleTimeout);
+    clearTimeout(this._waterfallStartTimeout);
+    // The AFK reveal is a Home-page easter egg only. On any other section the
+    // timer simply never arms, so the chrome never fades and the waterfall clip
+    // never plays there.
+    if (this.state.activeSection !== 'home') return;
+    this._idleTimeout = setTimeout(() => {
+      this.setState({ idle: true });
+      this._cancelReverse();
+      this._pendingDirection = null;
+      if (this._waterfallRef) {
+        this._waterfallRef.currentTime = 0;
+        this._waterfallRef.play().catch(() => {});
+      }
+      this._waterfallStartTimeout = setTimeout(() => {
+        ['up', 'down', 'left', 'right', 'center'].forEach((k) => {
+          const v = this._dirRef(k);
+          if (v) v.pause();
+        });
+      }, 900);
+    }, 10000);
+  }
+
+  _resumeDisplay() {
+    const key = this.state.displayKey;
+    const v = this._dirRef(key);
+    if (v) v.play().catch(() => {});
+  }
+
+  _onMouseMove(e) {
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    const dx = e.clientX - w / 2;
+    const dy = e.clientY - h / 2;
+    const deadRadius = Math.min(w, h) * 0.18;
+    let zone;
+    if (Math.hypot(dx, dy) < deadRadius) {
+      zone = 'center';
+    } else {
+      const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+      if (angle > -45 && angle <= 45) zone = 'right';
+      else if (angle > 45 && angle <= 135) zone = 'down';
+      else if (angle > 135 || angle <= -135) zone = 'left';
+      else zone = 'up';
+    }
+    if (zone === this.state.zone) return;
+    this.setState({ zone });
+    if (zone !== 'center') {
+      if (this.state.displayKey !== 'center' && this.state.displayKey !== zone) {
+        this._pendingDirection = zone;
+        this._returnToCenter();
+      } else {
+        this._pendingDirection = null;
+        this._enterDirection(zone);
+      }
+    } else {
+      this._pendingDirection = null;
+      this._returnToCenter();
+    }
+  }
+
+  _enterDirection(key) {
+    this._cancelReverse();
+    clearTimeout(this._fadeClearTimeout);
+    if (this.state.displayKey === key) return;
+    const prevKey = this.state.displayKey;
+    const prev = this._dirRef(prevKey);
+    if (prev) prev.pause();
+    // Hold the outgoing clip's fadingOutKey (opacity 1, lower z-index) until the
+    // incoming clip has fully faded in on top — this is what stops the vignette
+    // background from bleeding through mid-crossfade (two independent linear fades
+    // otherwise both dip below full coverage at the same time).
+    this.setState({ displayKey: key, fadingOutKey: prevKey });
+    const next = this._dirRef(key);
+    if (next) {
+      next.currentTime = 0;
+      next.play().catch(() => {});
+    }
+    this._fadeClearTimeout = setTimeout(() => {
+      this.setState((s) => (s.fadingOutKey === prevKey ? { fadingOutKey: null } : null));
+    }, 780);
+  }
+
+  _returnToCenter() {
+    const key = this.state.displayKey;
+    if (key === 'center') return;
+    this._startReverse(key);
+  }
+
+  _cancelReverse() {
+    if (this._reverseRAF) {
+      cancelAnimationFrame(this._reverseRAF);
+      this._reverseRAF = null;
+    }
+    this._reversePrevTs = null;
+  }
+
+  _startReverse(key) {
+    const v = this._dirRef(key);
+    // Always clear any in-flight scrub loop before starting a new one — this is the
+    // single guard that keeps at most one rAF loop alive at a time.
+    this._cancelReverse();
+    if (!v) {
+      this.setState({ displayKey: 'center' });
+      return;
+    }
+    v.pause();
+    // Clips are short (~1s): scrub faster than real-time so the reverse pass reads as
+    // snappy rather than a full second-long rewind, and snap-to-zero well before the
+    // exact float, so a stalled/never-firing 'seeking' state can't lock the state machine.
+    const REVERSE_SPEED = 2.75;
+    const SNAP_THRESHOLD = 0.1;
+    const minSeekInterval = 1000 / 24;
+    let target = v.currentTime;
+    let lastSeekTs = 0;
+    const finish = () => {
+      this._reverseRAF = null;
+      this._reversePrevTs = null;
+      v.pause();
+      v.currentTime = 0;
+      clearTimeout(this._fadeClearTimeout);
+      // Direct hand-off: a cross-move (Left->Right etc.) never touches the Center
+      // video at all — it's redundant since every directional clip's frame 0 IS the
+      // center pose. Center only ever displays when the mouse genuinely rests there.
+      if (this._pendingDirection) {
+        const next = this._pendingDirection;
+        this._pendingDirection = null;
+        this._enterDirection(next);
+      } else {
+        this.setState({ displayKey: 'center', fadingOutKey: key });
+        if (this._centerRef) this._centerRef.play().catch(() => {});
+        this._fadeClearTimeout = setTimeout(() => {
+          this.setState((s) => (s.fadingOutKey === key ? { fadingOutKey: null } : null));
+          v.pause();
+        }, 780);
+      }
+    };
+    const step = (ts) => {
+      if (this._reversePrevTs == null) this._reversePrevTs = ts;
+      const delta = Math.min((ts - this._reversePrevTs) / 1000, 0.1) * REVERSE_SPEED;
+      this._reversePrevTs = ts;
+      target = Math.max(0, target - delta);
+      if (target <= SNAP_THRESHOLD) {
+        finish();
+        return;
+      }
+      if (!v.seeking && ts - lastSeekTs >= minSeekInterval) {
+        v.currentTime = target;
+        lastSeekTs = ts;
+      }
+      this._reverseRAF = requestAnimationFrame(step);
+    };
+    this._reverseRAF = requestAnimationFrame(step);
+  }
+
+  openProjectModal(index) {
+    this._pauseIdleTimer();
+    clearTimeout(this._modalCloseTimeout);
+    this.setState({ projectModalIndex: index, carouselIndex: 0, modalPhase: 'entering', carouselPaused: false });
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => this.setState({ modalPhase: 'open' }));
+    });
+    this._startCarouselAuto();
+    if (!this._onModalKeydown) {
+      this._onModalKeydown = (e) => {
+        if (this.state.projectModalIndex == null) return;
+        if (e.key === 'Escape') this.closeProjectModal();
+        else if (e.key === 'ArrowRight') this.nextSlide({ stopPropagation() {} });
+        else if (e.key === 'ArrowLeft') this.prevSlide({ stopPropagation() {} });
+      };
+      window.addEventListener('keydown', this._onModalKeydown);
+    }
+  }
+
+  closeProjectModal() {
+    this.setState({ modalPhase: 'closing' });
+    clearTimeout(this._modalCloseTimeout);
+    this._modalCloseTimeout = setTimeout(() => {
+      this.setState({ modalPhase: 'closed', projectModalIndex: null });
+    }, 300);
+    this._resetTimer();
+    this._stopCarouselAuto();
+  }
+
+  // Auto-advance the carousel every 5s; any manual interaction (arrow, dot,
+  // hover) restarts the timer from zero so it never fights the user.
+  _startCarouselAuto() {
+    clearInterval(this._carouselInterval);
+    this._carouselInterval = setInterval(() => {
+      if (this.state.projectModalIndex == null || this.state.carouselPaused) return;
+      this.setState((s) => ({ carouselIndex: s.carouselIndex + 1 }));
+    }, 5000);
+  }
+
+  _stopCarouselAuto() {
+    clearInterval(this._carouselInterval);
+  }
+
+  pauseCarouselAuto() {
+    this.setState({ carouselPaused: true });
+  }
+
+  resumeCarouselAuto() {
+    this.setState({ carouselPaused: false });
+    this._startCarouselAuto();
+  }
+
+  prevSlide(e) {
+    e.stopPropagation();
+    this.setState((s) => ({ carouselIndex: s.carouselIndex - 1 }));
+    this._startCarouselAuto();
+  }
+
+  nextSlide(e) {
+    e.stopPropagation();
+    this.setState((s) => ({ carouselIndex: s.carouselIndex + 1 }));
+    this._startCarouselAuto();
+  }
+
+  goToSlide(i, e) {
+    e.stopPropagation();
+    this.setState({ carouselIndex: i });
+    this._startCarouselAuto();
+  }
+
+  // ══ Contact deck state machine ══════════════════════════════════════════
+  // The only transitions that exist. Pinned outranks hover everywhere: while a
+  // card is pinned, pointer enter/leave on any card is ignored outright, so a
+  // neighbour can never steal focus from the selection.
+
+  onContactEnter(card) {
+    this._pauseIdleTimer();
+    if (this.state.contactPinned !== null || this.state.contactAnimating) return;
+    this.setState({ contactHovered: card.id });
+  }
+
+  onContactLeave(card) {
+    this._resetTimer();
+    if (this.state.contactPinned !== null || this.state.contactAnimating) return;
+    this.setState((s) => (s.contactHovered === card.id ? { contactHovered: null } : null));
+  }
+
+  // Step the hand by one. Any pinned card is released first, in the same press,
+  // and further nav presses are ignored until the deal has finished so the
+  // animation can never be interrupted half-way.
+  onContactNav(dir, e) {
+    if (e && e.stopPropagation) e.stopPropagation();
+    this._pauseIdleTimer();
+    if (this.state.contactAnimating) return;
+    const total = this._contactTotal || 0;
+    if (total <= this._CT_HAND_SIZE) return;
+    this.setState((s) => ({
+      contactStart: ((s.contactStart + (dir === 'next' ? 1 : -1)) % total + total) % total,
+      contactPinned: null,
+      contactHovered: null,
+      contactAnimating: true,
+    }));
+    clearTimeout(this._ctNavTimeout);
+    this._ctNavTimeout = setTimeout(() => {
+      this.setState({ contactAnimating: false });
+      this._resetTimer();
+    }, this._CT_NAV_MS);
+  }
+
+  onContactClick(card, e) {
+    // Keep the click off the backdrop, which would immediately unpin.
+    if (e && e.stopPropagation) e.stopPropagation();
+    this._pauseIdleTimer();
+    if (this.state.contactAnimating) return;
+    if (this.state.contactPinned === card.id) {
+      // Second activation of the already-pinned card.
+      if (card.clickBehavior === 'pin-only') {
+        this.setState({ contactPinned: null, contactHovered: null });
+      } else {
+        this._openContact(card);
+      }
+      return;
+    }
+    // First activation — pin only, never navigate. Also covers switching from
+    // another pinned card straight to this one.
+    this.setState({ contactPinned: card.id, contactHovered: null });
+  }
+
+  onContactKeyDown(card, e) {
+    if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
+      e.preventDefault();
+      this.onContactClick(card, e);
+    } else if (e.key === 'Escape') {
+      this.closeContact();
+    }
+  }
+
+  closeContact() {
+    if (this.state.contactPinned === null && this.state.contactHovered === null) return;
+    this.setState({ contactPinned: null, contactHovered: null });
+    this._resetTimer();
+  }
+
+  _onContactArrowKey(e) {
+    if (this.state.activeSection !== 'contact') return;
+    if (e.key === 'ArrowRight') { e.preventDefault(); this.onContactNav('next'); }
+    else if (e.key === 'ArrowLeft') { e.preventDefault(); this.onContactNav('prev'); }
+  }
+
+  _openContact(card) {
+    const url = card.url;
+    if (!url) return; // no link configured yet — stay pinned rather than misfire
+    if (/^mailto:/i.test(url)) {
+      window.location.href = url;
+      return;
+    }
+    const w = window.open(url, '_blank', 'noopener,noreferrer');
+    if (w) w.opener = null;
+  }
+
+  // ── Project card hover ───────────────────────────────────────────────────
+  // The card's inline `transition: transform 400ms` is there to ease the lift
+  // and the settle back to rest. It must NOT be running while the tilt tracks
+  // the pointer: with it on, every movement rendered a third of a second behind
+  // the cursor, which reads as lag even though the page is holding 140fps.
+  _PROJ_REST_TRANSITION = 'transform 400ms var(--ease-out), box-shadow 400ms var(--ease-out)';
+  _PROJ_TRACK_TRANSITION = 'box-shadow 400ms var(--ease-out)';
+  _PROJ_LIFT_MS = 200;    // let the lift ease in before handing over to 1:1 tracking
+  _PROJ_PREVIEW_MS = 140; // a sweep across the deck shouldn't spin up any video
+
+  onProjectHover(e) {
+    this._pauseIdleTimer();
+    const card = e.currentTarget;
+    card.style.boxShadow = 'var(--shadow-card), var(--shadow-glow)';
+    card.style.transition = this._PROJ_REST_TRANSITION;
+    card._liftAt = performance.now();
+    this._aimTilt(card, e.clientX, e.clientY);
+    // Only spin the clip up once the pointer has actually settled on this card,
+    // so dragging straight past it costs nothing.
+    clearTimeout(card._previewTimer);
+    card._previewTimer = setTimeout(() => this._startPreview(card), this._PROJ_PREVIEW_MS);
+  }
+
+  _startPreview(card) {
+    if (!card.isConnected) return;
+    const video = card.querySelector('video');
+    const src = video && video.dataset.src;
+    if (!video || !src) return;
+    if (!video.getAttribute('src')) video.setAttribute('src', src);
+    const image = card.querySelector('.project-art-image');
+    if (image) image.style.opacity = '0';
+    video.style.opacity = '1';
+    video.play().catch(() => {});
+  }
+
+  // Hovering a card holds off the AFK idle fade — bring chrome back if it already
+  // faded, and don't let the 10s timer fire again until the mouse leaves the card.
+  _pauseIdleTimer() {
+    clearTimeout(this._idleTimeout);
+    clearTimeout(this._waterfallStartTimeout);
+    if (this.state.idle) {
+      this.setState({ idle: false });
+      this._resumeDisplay();
+      if (this._waterfallRef) this._waterfallRef.pause();
+    }
+  }
+
+  // 3D tilt that tracks the cursor position within the card
+  onProjectMove(e) {
+    const card = e.currentTarget;
+    // Once the lift has eased in, drop `transform` from the transition so the
+    // tilt follows the pointer 1:1 instead of chasing it on a 400ms curve.
+    if (performance.now() - (card._liftAt || 0) > this._PROJ_LIFT_MS
+        && card.style.transition !== this._PROJ_TRACK_TRANSITION) {
+      card.style.transition = this._PROJ_TRACK_TRANSITION;
+    }
+    this._aimTilt(card, e.clientX, e.clientY);
+  }
+
+  _aimTilt(card, clientX, clientY) {
+    this._tiltCard = card;
+    this._tiltX = clientX;
+    this._tiltY = clientY;
+    // Coalesce into one layout read + one style write per FRAME rather than per
+    // pointer event, so a fast sweep can't interleave reads and writes.
+    if (!this._tiltRAF) this._tiltRAF = requestAnimationFrame(this._applyTilt);
+  }
+
+  _applyTilt = () => {
+    this._tiltRAF = 0;
+    const card = this._tiltCard;
+    if (!card || !card.isConnected) return;
+    const rect = card.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    const px = (this._tiltX - rect.left) / rect.width; // 0..1
+    const py = (this._tiltY - rect.top) / rect.height; // 0..1
+    const rotateY = (px - 0.5) * 16; // left/right tilt
+    const rotateX = (0.5 - py) * 16; // up/down tilt
+    card.style.transform =
+      `perspective(1200px) rotateX(${rotateX.toFixed(2)}deg) rotateY(${rotateY.toFixed(2)}deg) scale(1.05)`;
+  };
+
+  onProjectLeave(e) {
+    const card = e.currentTarget;
+    const video = card.querySelector('video');
+    const image = card.querySelector('.project-art-image');
+    clearTimeout(card._previewTimer);
+    if (this._tiltCard === card) {
+      this._tiltCard = null;
+      if (this._tiltRAF) {
+        cancelAnimationFrame(this._tiltRAF);
+        this._tiltRAF = 0;
+      }
+    }
+    // Put the transform transition back so the card settles to rest smoothly
+    // instead of snapping flat.
+    card.style.transition = this._PROJ_REST_TRANSITION;
+    card.style.transform = 'none';
+    card.style.boxShadow = 'var(--shadow-card)';
+    if (image) image.style.opacity = '1';
+    this._resetTimer();
+    if (!video) return;
+    video.style.opacity = '0';
+    video.pause();
+    video.currentTime = 0;
+    // Deliberately keep the src. Tearing it down here (removeAttribute + load)
+    // meant sweeping the deck re-downloaded a 10MB clip and re-requested the
+    // three that don't exist yet, once per pass.
+  }
+
+  renderVals() {
+    const SUIT_GLYPHS = { spade: '♠', heart: '♥', diamond: '♦', club: '♣' };
+    // ✏️ EDIT PROJECT CARDS IN projects-data.js, NOT HERE — this just reads the
+    // window.PortfolioProjects global that file sets, and applies the per-card
+    // computed fields (artBg, slideBgs, …) that the template needs.
+    const projects = (this.props.projects ?? window.PortfolioProjects ?? []).map((p) => {
+      const rawImages = (p.images && p.images.length) ? p.images : (p.image ? [p.image] : []);
+      const placeholderBg = 'repeating-linear-gradient(135deg, rgba(151,71,255,0.12) 0 12px, rgba(12,8,1,0.9) 12px 24px)';
+      let slideBgs = rawImages.length ? rawImages.map((img) => `url(${img}) center/cover no-repeat`) : [placeholderBg];
+      if (slideBgs.length === 1) slideBgs = [slideBgs[0], slideBgs[0]];
+      return {
+        ...p,
+        artBg: p.image ? `url(${p.image}) center/cover no-repeat` : placeholderBg,
+        suitGlyphChar: SUIT_GLYPHS[p.suit] || SUIT_GLYPHS.spade,
+        slideBgs,
+      };
+    });
+    projects.forEach((p, i) => { p.onOpen = () => this.openProjectModal(i); });
+    const activeProject = this.state.projectModalIndex != null ? projects[this.state.projectModalIndex] : null;
+    const activeSlideIndex = activeProject ? ((this.state.carouselIndex % activeProject.slideBgs.length) + activeProject.slideBgs.length) % activeProject.slideBgs.length : 0;
+    const activeSlideBg = activeProject ? activeProject.slideBgs[activeSlideIndex] : '';
+    const modalSlides = activeProject ? activeProject.slideBgs.map((bg, i) => {
+      const len = activeProject.slideBgs.length;
+      let diff = ((i - activeSlideIndex + len) % len);
+      if (diff > len / 2) diff -= len;
+      const absDiff = Math.abs(diff);
+      const scale = absDiff === 0 ? 1 : absDiff === 1 ? 0.8 : 0.5;
+      const opacity = absDiff === 0 ? 1 : absDiff === 1 ? 0.5 : 0;
+      const offsetPct = absDiff === 0 ? 0 : diff < 0 ? (absDiff === 1 ? -62 : -120) : (absDiff === 1 ? 62 : 120);
+      return {
+        bg,
+        transform: `translate(-50%, -50%) translateX(${offsetPct}%) scale(${scale})`,
+        opacity,
+        z: absDiff === 0 ? 3 : absDiff === 1 ? 2 : 1,
+        shadow: absDiff === 0 ? 'var(--shadow-glass), var(--shadow-glow)' : 'var(--shadow-card)',
+        pointerEvents: absDiff <= 1 ? 'auto' : 'none',
+        cursor: absDiff === 0 ? 'default' : 'pointer',
+        onClick: absDiff === 0 ? (e) => e.stopPropagation() : (e) => this.goToSlide(i, e),
+      };
+    }) : [];
+
+    // ✏️ EDIT SKILL CARDS IN skills-data.js, NOT HERE — this just reads the
+    // window.PortfolioSkillGroups global that file sets. The scene list, the
+    // 01…NN numbering, the chapter counters and the final summary grid are all
+    // derived from it below, so nothing here needs to change when you edit it.
+    const skillGroups = this.props.skillGroups ?? window.PortfolioSkillGroups ?? [];
+
+    // ── Scene list: intro · (chapter + its skills) × 3 · final summary ──
+    const pad2 = (n) => String(n).padStart(2, '0');
+    const totalSkills = skillGroups.reduce((n, g) => n + g.items.length, 0);
+    const totalPad = pad2(totalSkills);
+    const railLabels = [`00 / ${totalPad}`];
+    const midScenes = [];
+    // scene index → its arc. Text scenes cycle the gentle poses; every skill card
+    // gets its own hand-tuned entry so no two behave alike.
+    const choreo = [this._textChoreo[0]];
+    let done = 0;
+    let sceneIndex = 1;
+    skillGroups.forEach((g, gi) => {
+      const first = done + 1;
+      choreo[sceneIndex] = this._textChoreo[(gi + 1) % this._textChoreo.length];
+      midScenes.push({
+        index: sceneIndex++,
+        isChapter: true,
+        isSkill: false,
+        title: g.category,
+        hasFrom: gi > 0,
+        fromLabel: gi > 0 ? skillGroups[gi - 1].category : '',
+        fromCount: gi > 0 ? `${pad2(done)} / ${totalPad}` : '',
+        range: `${pad2(first)} — ${pad2(first + g.items.length - 1)}`,
+      });
+      railLabels.push(`${pad2(done)} / ${totalPad}`);
+      g.items.forEach((it) => {
+        choreo[sceneIndex] = this._cardChoreo[done % this._cardChoreo.length];
+        done += 1;
+        midScenes.push({
+          index: sceneIndex++,
+          isChapter: false,
+          isSkill: true,
+          num: pad2(done),
+          name: it.name,
+          icon: it.icon,
+          category: g.category,
+        });
+        railLabels.push(`${pad2(done)} / ${totalPad}`);
+      });
+    });
+    const finalSceneIndex = sceneIndex;
+    railLabels.push(`${totalPad} / ${totalPad}`);
+    this._skillChoreo = choreo;
+
+    // Final summary — rows carry their skill order (k), so the assembly can send
+    // each one in from the side its column sits on, and `tilt` is the angle its
+    // card rested at, which the row straightens out of as it files in.
+    let k = 0;
+    const finalColumns = skillGroups.map((g, gi) => ({
+      title: g.category,
+      colOffset: gi - (skillGroups.length - 1) / 2,
+      headIndex: gi + 1, // 0 is the "Technical Skills" title block
+      items: g.items.map((it) => {
+        const arc = this._cardChoreo[k % this._cardChoreo.length];
+        return { ...it, k: k++, tilt: arc.rest[2] };
+      }),
+    }));
+
+    // 🎚️ Scroll length per scene, in viewport heights — lower = faster presentation.
+    const SCENE_VH = 80;
+    const TAIL_UNITS = 0.55; // short settle once the summary has assembled
+    this._skillsTailUnits = TAIL_UNITS;
+    this._skillsRailLabels = railLabels;
+    const reduced = this._reducedMotion;
+
+    // ✏️ EDIT CONTACT CARDS IN contact-data.js, NOT HERE — this just reads the
+    // window.PortfolioContactCards global that file sets.
+    const contactCardData = this.props.contactCards ?? window.PortfolioContactCards ?? [];
+
+    // Derived visual state — the single place hand / hover / pinned is resolved.
+    const pinnedId = this.state.contactPinned;
+    const hoveredId = this.state.contactHovered;
+    const busy = this.state.contactAnimating;
+    const REC = this._ctRecede;
+    const HAND = this._CT_HAND_SIZE;
+    const total = contactCardData.length;
+    this._contactTotal = total;
+    const start = ((this.state.contactStart % total) + total) % total;
+    let focusCard = null;
+
+    const contactCards = contactCardData.map((c, i) => {
+      // rel 0…3 are the four cards in the hand; anything higher is off-stage.
+      // The highest rel is the card that was just thrown, so it parks LEFT while
+      // the ones still to come park RIGHT — which is what gives the deal its
+      // direction without any per-transition bookkeeping.
+      const rel = (i - start + total) % total;
+      const inHand = rel < HAND;
+      const pose = inHand ? this._ctHand[rel] : null;
+      const off = rel === total - 1 ? this._ctOff.left : this._ctOff.right;
+      const base = pose ? pose.at : off;
+
+      // PINNED > HOVER > IDLE. Hover only counts when nothing is pinned and the
+      // deck is not mid-deal.
+      const state = pinnedId === c.id ? 'pinned'
+        : (pinnedId === null && !busy && hoveredId === c.id) ? 'hover'
+        : 'idle';
+
+      let [x, y, rot, scale] = base;
+      let opacity = inHand ? 1 : 0;
+      let z = inHand ? 20 + rel : 1;
+      if (inHand) {
+        if (state === 'hover') {
+          const [hx, hy, hrot, hscale] = pose.hover;
+          x += hx; y += hy; rot += hrot; scale += hscale; z = 50;
+        } else if (pinnedId !== null) {
+          // The focused card is in the overlay; the hand settles back behind it.
+          y += REC.drop; scale *= REC.scale; opacity = REC.opacity;
+        } else if (hoveredId !== null && !busy) {
+          // A neighbour is lifted — ease apart a touch to make room.
+          x *= 1.05; y += 5; scale *= 0.985; opacity = 0.7;
+        }
+      }
+
+      const handle = c.handle == null || c.handle === '' ? null : c.handle;
+      const clickBehavior = c.clickBehavior || 'pin-then-open';
+      const card = { ...c, clickBehavior };
+      const view = {
+        ...card,
+        index: String(i + 1).padStart(2, '0'),
+        icon: `assets/contact/icons/${c.id}.png`,
+        profileImage: `assets/contact/profile/${c.id}.png`,
+        handle,
+        hasHandle: handle !== null,
+        descriptionLang: /[\u0E00-\u0E7F]/.test(c.description || '') ? 'th' : 'en',
+        actionLabel: c.url ? (c.actionLabel || 'Open ↗') : 'Link not set yet',
+        hintClass: c.url ? '' : 'is-unset',
+        stateClass: state === 'hover' ? 'is-hover' : '',
+        transform: `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) rotate(${rot.toFixed(2)}deg) scale(${scale.toFixed(3)})`,
+        z,
+        opacity,
+        pointerEvents: inHand && pinnedId === null ? 'auto' : 'none',
+        tabIndex: inHand && pinnedId === null ? 0 : -1,
+        ariaHidden: inHand ? 'false' : 'true',
+        ariaLabel: `${c.platform}${handle ? ' ' + handle : ''} — activate to select`,
+        onEnter: () => this.onContactEnter(card),
+        onLeave: () => this.onContactLeave(card),
+        onClick: (e) => this.onContactClick(card, e),
+        onKeyDown: (e) => this.onContactKeyDown(card, e),
+      };
+      if (state === 'pinned') {
+        focusCard = {
+          ...view,
+          ariaLabel: `${c.platform}${handle ? ' ' + handle : ''} — selected, activate again to open`,
+          pointerEvents: 'auto',
+          tabIndex: 0,
+        };
+      }
+      return view;
+    });
+
+    const contactCounter = `${String(start + 1).padStart(2, '0')} – ${String(((start + HAND - 1) % total) + 1).padStart(2, '0')} / ${String(total).padStart(2, '0')}`;
+
+    const activeSection = this.state.activeSection;
+    const navItems = [
+      { key: 'home', icon: 'Home', label: 'Home' },
+      { key: 'projects', icon: 'Layer', label: 'Projects' },
+      { key: 'skills', icon: 'PieChartAlt2', label: 'Skills' },
+    ].map((item) => {
+      const active = activeSection === item.key;
+      return {
+        ...item,
+        onClick: () => this.navigateTo(item.key),
+        bg: active ? 'rgba(151,71,255,0.14)' : 'transparent',
+        borderLeft: active ? '2px solid var(--accent-primary)' : '2px solid transparent',
+        iconColor: active ? 'var(--accent-primary)' : 'var(--text-secondary)',
+        textColor: active ? 'var(--text-primary)' : 'var(--text-secondary)',
+        textShadow: active ? '0 0 12px rgba(151,71,255,0.55)' : 'none',
+      };
+    });
+
+    const navLinksArr = typeof this.props.navLinks === 'string'
+      ? this.props.navLinks.split(',').map((s) => s.trim()).filter(Boolean)
+      : (this.props.navLinks ?? ['Work', 'About', 'Contact']);
+    const SECTION_ALIAS = { work: 'projects', home: 'home', projects: 'projects', skills: 'skills', about: 'about', contact: 'contact' };
+    const topNavItems = navLinksArr.map((label) => {
+      const key = SECTION_ALIAS[label.trim().toLowerCase()];
+      const active = key && activeSection === key;
+      return {
+        label,
+        onClick: key ? () => this.navigateTo(key) : undefined,
+        color: active ? 'var(--accent-primary)' : 'var(--text-secondary)',
+        textShadow: active ? '0 0 12px rgba(151,71,255,0.55)' : 'none',
+      };
+    });
+
+    const plPhase = this.state.preloaderPhase;
+    const voxels = (this.state.voxels || []).map((v) => ({
+      left: v.left,
+      top: v.top,
+      w: v.w,
+      h: v.h,
+      transform: this.state.voxelsScattered
+        ? `translate(${v.tx}px, ${v.ty}px) rotate(${v.rot}deg) scale(0.3)`
+        : 'translate(0px, 0px) rotate(0deg) scale(1)',
+      opacity: this.state.voxelsScattered ? 0 : 1,
+      transition: `transform 900ms cubic-bezier(0.3,0.7,0.4,1) ${v.delay}ms, opacity 900ms ease-out ${v.delay}ms`,
+    }));
+
+    const phase = this.state.cardPhase;
+    let cardTransform, cardOpacity, cardTransition;
+    if (phase === 'out') {
+      cardTransform = 'translateY(-60vh) scale(9) rotateY(680deg)';
+      cardOpacity = 0;
+      cardTransition = 'transform 520ms cubic-bezier(0.4,0,0.2,1), opacity 480ms ease-in';
+    } else if (phase === 'in' || phase === 'cover') {
+      cardTransform = 'translateY(0) scale(9) rotateY(360deg)';
+      cardOpacity = 1;
+      cardTransition = 'transform 480ms cubic-bezier(0.4,0,0.2,1), opacity 200ms ease-out';
+    } else {
+      cardTransform = 'translateY(60vh) scale(0.05) rotateY(-40deg)';
+      cardOpacity = 0;
+      cardTransition = 'none';
+    }
+
+    return {
+      // ✏️ EDIT YOUR TEXT CONTENT below: siteName, role, eyebrow, tagline,
+      // aboutBlurb, contactPrompt. Project/skill/contact CARD DATA lives in
+      // projects-data.js / skills-data.js / contact-data.js instead — see
+      // window.PortfolioProjects / PortfolioSkillGroups / PortfolioContactCards
+      // above in this same renderVals() function.
+      preloaderDisplay: plPhase === 'done' ? 'none' : 'flex',
+      preloaderOpacity: plPhase === 'entering' ? 0 : 1,
+      preloaderFadeTransition: plPhase === 'entering' ? 'opacity 700ms cubic-bezier(0.4,0,0.2,1)' : 'none',
+      showSpinnerCard: plPhase === 'spinning',
+      showVoxels: plPhase === 'shattering',
+      spinnerAnimation: 'preloader-drop 700ms cubic-bezier(0.4,0,0.2,1) both, preloader-spin 1.8s linear infinite 700ms',
+      voxels,
+      navItems,
+      goToProjects: () => this.navigateTo('projects'),
+      homeDisplay: activeSection === 'home' ? 'flex' : 'none',
+      projectsDisplay: activeSection === 'projects' ? 'flex' : 'none',
+      skillsDisplay: activeSection === 'skills' ? 'flex' : 'none',
+      aboutDisplay: activeSection === 'about' ? 'flex' : 'none',
+      contactDisplay: activeSection === 'contact' ? 'flex' : 'none',
+      goToAbout: () => this.navigateTo('about'),
+      topNavItems,
+      aboutBlurb: this.props.aboutBlurb ?? "I build small, strange worlds in Godot and light them with hand-placed pixels. Every project on this table started as a trick I didn't know how to pull off yet.",
+      contactPrompt: this.props.contactPrompt ?? 'Choose a card.',
+      contactCards,
+      contactCounter,
+      contactNavClass: focusCard !== null ? 'is-floating' : '',
+      mainZIndex: focusCard !== null ? 30 : 5,
+      contactHasFocus: focusCard !== null,
+      contactFocus: focusCard || {},
+      onContactPrev: (e) => this.onContactNav('prev', e),
+      onContactNext: (e) => this.onContactNav('next', e),
+      onContactBackdrop: () => this.closeContact(),
+      setContactRootRef: (el) => { this._contactRootRef = el; },
+      setContactDeckRef: (el) => { this._contactDeckRef = el; },
+      // ── Skills scroll presentation ──
+      midScenes,
+      finalColumns,
+      finalSceneIndex,
+      skillsRailInitialLabel: railLabels[0],
+      skillsRailClass: reduced ? 'sk-rail-off' : '',
+      // Track = one scene-length of scroll per scene, plus one viewport for the
+      // sticky child to pin against. Reduced motion drops the whole rig and lets
+      // the scenes stack in normal flow instead.
+      skillsTrackHeight: reduced ? 'auto' : `calc(${(finalSceneIndex + TAIL_UNITS) * SCENE_VH}vh + 100vh)`,
+      skillsViewportPosition: reduced ? 'static' : 'sticky',
+      skillsViewportHeight: reduced ? 'auto' : '100vh',
+      skillsViewportOverflow: reduced ? 'visible' : 'hidden',
+      scenePosition: reduced ? 'relative' : 'absolute',
+      sceneInset: reduced ? 'auto' : '0',
+      sceneMinHeight: reduced ? '68vh' : '0',
+      sceneInitialOpacity: reduced ? 1 : 0,
+      setSkillsTrackRef: (el) => { this._skillsTrackRef = el; },
+      setSkillsRailFillRef: (el) => { this._skillsRailFillRef = el; },
+      setSkillsRailLabelRef: (el) => { this._skillsRailLabelRef = el; },
+      cardTransform,
+      cardOpacity,
+      cardTransition,
+      siteName: this.props.siteName ?? 'Mira Voss',
+      // navBrand/sidebarBrand: decoupled from siteName so the top-nav corner can
+      // carry the full name while the sidebar reads as a plain wordmark — the
+      // hero <h1> below keeps using siteName on its own.
+      navBrand: this.props.navBrand ?? 'Phattarakul Saklor',
+      sidebarBrand: this.props.sidebarBrand ?? 'Portfolio',
+      role: this.props.role ?? 'Pixel Artist · Godot',
+      eyebrow: this.props.eyebrow ?? 'Portfolio',
+      tagline: this.props.tagline ?? 'Illusions built in Godot and Lua. Every project is a card — turn it over to see the trick.',
+      navLinks: typeof this.props.navLinks === 'string'
+        ? this.props.navLinks.split(',').map((s) => s.trim()).filter(Boolean)
+        : (this.props.navLinks ?? ['Work', 'About', 'Contact']),
+      projects,
+      onProjectHover: this.onProjectHover.bind(this),
+      onProjectMove: this.onProjectMove.bind(this),
+      onProjectLeave: this.onProjectLeave.bind(this),
+      closeProjectModal: this.closeProjectModal.bind(this),
+      prevSlide: this.prevSlide.bind(this),
+      nextSlide: this.nextSlide.bind(this),
+      pauseCarouselAuto: this.pauseCarouselAuto.bind(this),
+      resumeCarouselAuto: this.resumeCarouselAuto.bind(this),
+      stopModalContentClick: (e) => e.stopPropagation(),
+      modalDisplay: this.state.modalPhase === 'closed' ? 'none' : 'flex',
+      modalBackdropOpacity: this.state.modalPhase === 'open' ? 1 : 0,
+      modalContentOpacity: this.state.modalPhase === 'open' ? 1 : 0,
+      modalContentTransform: this.state.modalPhase === 'open' ? 'scale(1)' : 'scale(0.94)',
+      modalTitle: activeProject ? activeProject.title : '',
+      modalDescription: activeProject ? activeProject.description : '',
+      modalDescriptionLang: activeProject && /[\u0E00-\u0E7F]/.test(activeProject.description || '') ? 'th' : 'en',
+      modalTags: activeProject ? activeProject.tags : [],
+      modalLink: activeProject ? (activeProject.link || '') : '',
+      modalLinkLabel: activeProject ? (activeProject.linkLabel || 'Play Demo') : '',
+      modalHasLink: !!(activeProject && activeProject.link),
+      modalSlideBg: activeSlideBg,
+      modalSlides,
+      modalHasMultipleSlides: activeProject ? activeProject.slideBgs.length > 1 : false,
+      modalSlideCount: activeProject ? `${activeSlideIndex + 1} / ${activeProject.slideBgs.length}` : '',
+      modalCarouselKey: `${this.state.projectModalIndex}-${activeSlideIndex}`,
+      modalCarouselPlayState: this.state.carouselPaused ? 'paused' : 'running',
+      modalDots: activeProject ? activeProject.slideBgs.map((_, i) => ({
+        i,
+        active: i === activeSlideIndex,
+        onClick: (e) => this.goToSlide(i, e),
+      })) : [],
+      chromeOpacity: this.state.idle ? 0 : 1,
+      chromePointerEvents: this.state.idle ? 'none' : 'auto',
+      opacityUp: this.state.displayKey === 'up' || this.state.fadingOutKey === 'up' ? 1 : 0,
+      opacityDown: this.state.displayKey === 'down' || this.state.fadingOutKey === 'down' ? 1 : 0,
+      opacityLeft: this.state.displayKey === 'left' || this.state.fadingOutKey === 'left' ? 1 : 0,
+      opacityRight: this.state.displayKey === 'right' || this.state.fadingOutKey === 'right' ? 1 : 0,
+      opacityCenter: this.state.displayKey === 'center' || this.state.fadingOutKey === 'center' ? 1 : 0,
+      zIndexUp: this.state.displayKey === 'up' ? 2 : this.state.fadingOutKey === 'up' ? 1 : 0,
+      zIndexDown: this.state.displayKey === 'down' ? 2 : this.state.fadingOutKey === 'down' ? 1 : 0,
+      zIndexLeft: this.state.displayKey === 'left' ? 2 : this.state.fadingOutKey === 'left' ? 1 : 0,
+      zIndexRight: this.state.displayKey === 'right' ? 2 : this.state.fadingOutKey === 'right' ? 1 : 0,
+      zIndexCenter: this.state.displayKey === 'center' ? 2 : this.state.fadingOutKey === 'center' ? 1 : 0,
+      trackingGroupOpacity: 1,
+      opacityWaterfall: this.state.idle ? 1 : 0,
+      setUpRef: (el) => { this._upRef = el; },
+      setDownRef: (el) => { this._downRef = el; },
+      setLeftRef: (el) => { this._leftRef = el; },
+      setRightRef: (el) => { this._rightRef = el; },
+      setCenterRef: (el) => { this._centerRef = el; },
+      setWaterfallRef: (el) => { this._waterfallRef = el; },
+      handleWaterfallEnded: () => this._handleWaterfallEnded(),
+    };
+  }
+}
+
+</script>
+</body>
+</html>

@@ -1,0 +1,77 @@
+/* All styling is scoped to About; the original shell/video remains in charge. */
+about-constellation { display:block; width:100%; min-width:0; color:var(--text-primary); font-family:var(--font-body); container-type:inline-size; }
+about-constellation *, about-constellation *::before, about-constellation *::after { box-sizing:border-box; }
+about-constellation [hidden] { display:none !important; }
+about-constellation .am-scene { position:relative; width:100%; height:calc(100svh - 16px); min-height:660px; padding:92px 38px 32px; isolation:isolate; }
+about-constellation .am-scene::before { content:''; position:absolute; inset:0; z-index:-1; pointer-events:none; background:linear-gradient(180deg,rgba(12,8,1,.12),transparent 35%,rgba(12,8,1,.55)); }
+about-constellation .am-heading { position:relative; z-index:2; pointer-events:none; }
+about-constellation .am-eyebrow { font-size:10px; letter-spacing:.25em; color:#bb8dfa; }
+about-constellation .am-heading h2 { margin:9px 0; font:400 32px/1.2 var(--font-display); text-transform:uppercase; }
+about-constellation .am-instruction { position:absolute; top:8px; right:0; margin:0; font-size:12px; color:var(--text-secondary); }
+about-constellation .am-map { position:absolute; top:210px; left:30px; right:38px; bottom:210px; }
+about-constellation .am-lines { position:absolute; width:100%; height:100%; overflow:visible; pointer-events:none; opacity:.65; }
+about-constellation .am-lines line { stroke:#ba93ef; stroke-width:.7px; opacity:.13; transition:opacity .5s; }
+about-constellation .am-lines line.am-related { opacity:.42; }
+about-constellation .am-identity { position:absolute; left:44%; top:56%; width:80%; transform:translate(-50%,-50%); text-align:center; pointer-events:none; text-shadow:0 3px 24px #08030d; }
+about-constellation .am-identity .am-eyebrow { font-size:8px; letter-spacing:.27em; color:rgba(238,222,255,.58); }
+about-constellation .am-identity h3 { margin:12px 0 9px; font:400 clamp(20px,2.7vw,38px)/1.2 var(--font-display); letter-spacing:.035em; }
+about-constellation .am-identity p { margin:0; font-size:12px; color:rgba(255,255,255,.74); }
+about-constellation .am-anchor { position:absolute; left:var(--x); top:var(--y); transform:translate(-50%,-50%); z-index:2; }
+about-constellation .am-node { appearance:none; border:0; background:none; color:rgba(241,226,255,.76); position:relative; padding:18px 10px; min-height:44px; cursor:pointer; white-space:nowrap; text-align:left; font:400 clamp(12px,1.45vw,20px)/1.3 var(--font-display); transform:scale(var(--scale)); transition:color .4s,text-shadow .4s,transform .5s cubic-bezier(.16,1,.3,1); text-shadow:0 2px 18px #08020b; }
+about-constellation .am-number { position:absolute; top:1px; left:11px; font:10px/1 var(--font-body); letter-spacing:.14em; color:#b890ec; opacity:.7; }
+about-constellation .am-star { display:block; width:4px; height:4px; margin-top:8px; border-radius:50%; background:#b890ec; box-shadow:0 0 9px #9747ff; }
+about-constellation .am-label::after { content:''; position:absolute; left:10px; right:10px; bottom:19px; height:1px; background:linear-gradient(90deg,#b890ec,transparent); transform:scaleX(0); transform-origin:left; transition:transform .5s; }
+about-constellation .am-anchor[data-state=hover] .am-node, about-constellation .am-anchor[data-state=active] .am-node { color:#fff; text-shadow:0 0 22px #9747ff,0 2px 14px #000; transform:scale(calc(var(--scale) * 1.04)); }
+about-constellation .am-anchor[data-state=active] .am-label::after { transform:scaleX(1); }
+about-constellation .am-node:focus-visible, about-constellation .am-reset:focus-visible, about-constellation .am-launcher:focus-visible, about-constellation .am-mobile-close:focus-visible { outline:2px solid #c598ff; outline-offset:5px; border-radius:2px; }
+about-constellation .am-floating { animation:am-drift var(--duration) ease-in-out var(--phase) infinite alternate; animation-play-state:paused; }
+about-constellation .am-scene[data-running=true] .am-floating { animation-play-state:running; }
+about-constellation .am-scene[data-running=true] .am-anchor { animation:am-arrive .95s ease-out var(--delay) both; }
+about-constellation .am-details { position:absolute; bottom:34px; left:48px; right:48px; min-height:145px; }
+about-constellation .am-prompt { position:absolute; bottom:12px; margin:0; white-space:pre-line; color:var(--text-secondary); font-size:13px; line-height:1.9; }
+about-constellation .am-copy { position:absolute; inset:0 70px auto 0; max-width:470px; opacity:0; visibility:hidden; transform:translateY(8px); transition:opacity .35s,transform .45s,visibility .35s; pointer-events:none; }
+about-constellation .am-copy[data-open=true] { opacity:1; visibility:visible; transform:translateY(0); pointer-events:auto; }
+about-constellation .am-copy-label { display:block; border-bottom:1px solid rgba(187,141,250,.3); padding-bottom:12px; max-width:300px; font-size:10px; letter-spacing:.2em; color:#c09ce9; }
+about-constellation .am-copy p { font:400 clamp(17px,1.9vw,24px)/1.5 var(--font-body); margin:14px 0 0; color:#f0eaf5; text-wrap:pretty; text-shadow:0 2px 15px #08030d; }
+about-constellation .am-reset { position:absolute; right:0; bottom:12px; border:0; background:none; padding:10px 0; cursor:pointer; font:11px var(--font-body); color:#c09ce9; }
+about-constellation .am-mobile { max-width:none; max-height:none; width:100%; height:100%; margin:0; padding:0; border:0; color:#fff; background:rgba(9,5,15,.83); }
+about-constellation .am-mobile::backdrop { background:rgba(0,0,0,.15); }
+about-constellation .am-launcher, about-constellation .am-mobile-close { border:0; border-bottom:1px solid #9747ff; background:none; color:#e4d2ff; padding:12px 0; font:14px/1.5 var(--font-body); cursor:pointer; }
+about-constellation .am-mobile-close { position:absolute; top:16px; right:22px; z-index:5; }
+@keyframes am-drift { from { transform:translateY(calc(var(--drift) * -1)); } to { transform:translateY(var(--drift)); } }
+@keyframes am-arrive { from { opacity:0; translate:0 9px; } to { opacity:1; translate:0 0; } }
+@container (max-width:650px) {
+  about-constellation .am-scene { min-height:850px; padding:96px 20px 24px; }
+  about-constellation .am-map { top:300px; bottom:230px; left:22px; right:22px; display:grid; grid-template-columns:1fr 1fr; grid-template-rows:repeat(3,1fr); gap:22px 16px; align-items:center; }
+  about-constellation .am-identity { top:-76px; left:50%; width:100%; }
+  about-constellation .am-identity h3 { font-size:clamp(18px,4vw,30px); }
+  about-constellation .am-identity p { max-width:230px; margin:auto; line-height:1.7; }
+  about-constellation .am-anchor { position:relative; top:auto; left:auto; transform:none; min-width:0; }
+  about-constellation .am-anchor:nth-of-type(even) { translate:0 15px; }
+  about-constellation .am-node { white-space:normal; font-size:14px; max-width:100%; }
+  about-constellation .am-lines { display:none; }
+  about-constellation .am-details { left:30px; right:30px; min-height:174px; }
+  about-constellation .am-copy { right:0; }
+  about-constellation .am-copy p { font-size:19px; }
+  about-constellation .am-reset { bottom:-8px; }
+  about-constellation .am-instruction { position:static; margin-top:8px; }
+}
+@media (max-width:680px) {
+  about-constellation { padding-top:110px; }
+  about-constellation .am-launcher { width:100%; overflow-wrap:anywhere; font-size:12px; }
+  about-constellation .am-mobile .am-scene { height:auto; min-height:max(810px,100svh); padding-top:72px; }
+  about-constellation .am-mobile .am-map { top:300px; }
+}
+@media (prefers-reduced-motion:reduce) {
+  about-constellation .am-floating, about-constellation .am-scene[data-running=true] .am-anchor { animation:none; }
+  about-constellation .am-node { transform:none !important; transition:color .15s; }
+  about-constellation .am-copy { transform:none; transition:opacity .15s,visibility .15s; }
+}
+
+/* Thai copy keeps its own typeface without changing the site's English typography.
+   Kanit Light reads cleaner for Thai than Chakra Petch did at any weight. */
+html body [lang="th"] {
+  font-family:"Kanit","Noto Sans Thai",sans-serif !important;
+  font-weight:300 !important;
+}
+@import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500&display=swap');

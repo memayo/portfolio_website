@@ -1,0 +1,152 @@
+/* Button & link flourishes — hover/focus detail for every clickable thing.
+   Adapted from the skiper40 animated-link set (sweeping underline + an arrow
+   that slides in) and retuned for this deck's violet-on-near-black palette.
+   Pure CSS: no JS, nothing to wire up, and every effect is transform/opacity
+   so none of it costs layout.
+
+   IMPORTANT when editing the template: inline styles beat classes, so anything
+   these rules need to animate (background, border, color) must NOT also be set
+   inline on the element. That is why the modal's buttons carry .lx-icon-btn and
+   keep only geometry inline. */
+
+:root {
+  --lx-ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --lx-dur: 320ms;
+}
+
+/* ── 1. Text link: underline sweeps in from the left, retreats to the right ──
+   The asymmetric transform-origin is the whole trick — it reads as the line
+   being drawn on and then pulled off, rather than simply scaling. */
+.lx-link {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+}
+.lx-link::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -0.28em;
+  width: 100%;
+  height: 1px;
+  background: currentColor;
+  transform: scaleX(0);
+  transform-origin: right;
+  transition: transform var(--lx-dur) var(--lx-ease);
+  pointer-events: none;
+}
+.lx-link:hover::before,
+.lx-link:focus-visible::before {
+  transform: scaleX(1);
+  transform-origin: left;
+}
+
+/* Trailing arrow that fades up into place. Works for a literal "→" glyph
+   (.lx-nudge) or an inline SVG (.lx-arrow). */
+.lx-nudge {
+  display: inline-block;
+  transition: transform var(--lx-dur) var(--lx-ease);
+}
+.lx-link:hover .lx-nudge,
+.lx-link:focus-visible .lx-nudge,
+.lx-card:hover .lx-nudge {
+  transform: translateX(0.32em);
+}
+
+.lx-arrow {
+  width: 0.6em;
+  height: 0.6em;
+  flex-shrink: 0;
+  opacity: 0;
+  transform: translate(-0.18em, 0.18em);
+  transition: opacity var(--lx-dur) var(--lx-ease), transform var(--lx-dur) var(--lx-ease);
+}
+.lx-link:hover .lx-arrow,
+.lx-link:focus-visible .lx-arrow {
+  opacity: 1;
+  transform: translate(0, 0);
+}
+
+/* A card hovering should light its own "reveal" line, since the pointer is on
+   the card rather than on the small text. */
+.lx-card:hover .lx-link::before {
+  transform: scaleX(1);
+  transform-origin: left;
+}
+
+/* ── 2. Sidebar nav row: a violet wipe from the left, content nudges with it ── */
+.lx-nav {
+  position: relative;
+  overflow: hidden;
+}
+.lx-nav::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(151, 71, 255, 0.26), rgba(151, 71, 255, 0.03));
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 300ms var(--lx-ease);
+  pointer-events: none;
+}
+.lx-nav:hover::before { transform: scaleX(1); }
+/* Keep the icon and label above the wipe. */
+.lx-nav > * { position: relative; }
+.lx-nav-icon,
+.lx-nav-label { transition: transform 300ms var(--lx-ease); }
+.lx-nav:hover .lx-nav-icon { transform: translateX(3px); }
+.lx-nav:hover .lx-nav-label { transform: translateX(4px); }
+
+/* ── 3. Round icon buttons (modal close, carousel arrows) ──
+   These own their background/border/colour here so :hover can actually change
+   them; the template keeps only position/size/z-index inline. */
+.lx-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  cursor: pointer;
+  border-radius: 50%;
+  color: var(--text-primary);
+  background: rgba(12, 8, 1, 0.55);
+  border: 1px solid var(--surface-glass-border);
+  transition: background 260ms var(--lx-ease), border-color 260ms var(--lx-ease),
+              box-shadow 260ms var(--lx-ease), color 260ms var(--lx-ease);
+}
+.lx-icon-btn:hover {
+  background: rgba(151, 71, 255, 0.24);
+  border-color: rgba(184, 130, 255, 0.85);
+  color: #fff;
+  box-shadow: 0 0 26px rgba(151, 71, 255, 0.45);
+}
+.lx-icon-btn:focus-visible {
+  outline: none;
+  border-color: rgba(198, 150, 255, 0.95);
+  box-shadow: 0 0 0 2px rgba(151, 71, 255, 0.55), 0 0 30px rgba(151, 71, 255, 0.4);
+}
+
+/* ── 4. Carousel dots: thicken and light up on hover ── */
+.lx-dot {
+  /* Base colour lives here, not inline, so :hover can override it. */
+  background: rgba(255, 255, 255, 0.22);
+  transition: background 240ms var(--lx-ease), box-shadow 240ms var(--lx-ease),
+              transform 240ms var(--lx-ease);
+  transform-origin: center;
+}
+.lx-dot:hover {
+  background: rgba(255, 255, 255, 0.4);
+  box-shadow: 0 0 10px rgba(151, 71, 255, 0.5);
+  transform: scaleY(1.8);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lx-link::before,
+  .lx-nav::before,
+  .lx-nudge,
+  .lx-arrow,
+  .lx-nav-icon,
+  .lx-nav-label,
+  .lx-icon-btn,
+  .lx-dot { transition: none; }
+}

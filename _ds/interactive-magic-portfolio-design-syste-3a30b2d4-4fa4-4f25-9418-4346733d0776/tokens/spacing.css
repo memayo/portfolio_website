@@ -1,0 +1,21 @@
+/* Spacing & sizing — verbatim from Style-Guide "Spacing & Sizing" variable collection
+   (Container widths, Max Width scale) plus an 8px rhythm used throughout Relume auto-layouts. */
+:root {
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+  --space-9: 80px;
+  --space-10: 112px;
+
+  --container-small: 480px;
+  --container-medium: 768px;
+  --container-large: 1280px;
+
+  --max-width-xxsmall: 384px;
+  --max-width-medium: 768px;
+}
