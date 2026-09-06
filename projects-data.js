@@ -71,10 +71,13 @@ window.PortfolioProjects = [
     tags: ['3D Modeling'],
     description: 'A card-battler with fully modeled 3D decks that warp as the game turns against you.',
   },
-  { title: 'The forest',
-    rank: '3', suit: 'club',
-    tags: ['3D Modeling'],
-    description: 'A card-battler with fully modeled 3D decks that warp as the game turns against you.',
-  },
+  { title: 'Lost in the Forest',
+    rank: 'J', suit: 'heart',
+    tags: ['Unreal Engine 5', 'horror', 'game jam'],
+    image: 'assets/image/lf4.png',
+    images: ['assets/image/lf1.png', 'assets/image/lf2.png', 'assets/image/lf3.png'],
+    description: 'เกม Horror / Survival ที่พัฒนา ด้วย Unreal Engine 5 เข้าร่วมกิจกรรม Game Jam horror game jame 2025 (ยังไม่เสร็จ)" ',
+    previewVideo: 'assets/video/lost_thef.mov',}
+    
 
 ];
