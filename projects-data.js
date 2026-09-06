@@ -40,7 +40,7 @@ window.PortfolioProjects = [
   { title: 'Starwars Animation',
     rank: 'K', suit: 'heart',
     tags: ['Godot', 'Lua'],
-    image: 'assets/image/{starwar_mung}.0277 2.png',
+    image: 'assets/image/starwars-animation.png',
     description: 'A narrative puzzler about a magician who runs out of tricks — and out of time.',
   },
   { title: 'Portfolio Website',

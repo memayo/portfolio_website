@@ -1984,13 +1984,14 @@ class Component extends DCLogic {
     // window.PortfolioProjects global that file sets, and applies the per-card
     // computed fields (artBg, slideBgs, …) that the template needs.
     const projects = (this.props.projects ?? window.PortfolioProjects ?? []).map((p) => {
+      const cssImage = (source) => `url("${String(source).replace(/\\/g, '\\\\').replace(/"/g, '\\"')}") center/cover no-repeat`;
       const rawImages = (p.images && p.images.length) ? p.images : (p.image ? [p.image] : []);
       const placeholderBg = 'repeating-linear-gradient(135deg, rgba(151,71,255,0.12) 0 12px, rgba(12,8,1,0.9) 12px 24px)';
-      let slideBgs = rawImages.length ? rawImages.map((img) => `url(${img}) center/cover no-repeat`) : [placeholderBg];
+      let slideBgs = rawImages.length ? rawImages.map(cssImage) : [placeholderBg];
       if (slideBgs.length === 1) slideBgs = [slideBgs[0], slideBgs[0]];
       return {
         ...p,
-        artBg: p.image ? `url(${p.image}) center/cover no-repeat` : placeholderBg,
+        artBg: p.image ? cssImage(p.image) : placeholderBg,
         suitGlyphChar: SUIT_GLYPHS[p.suit] || SUIT_GLYPHS.spade,
         slideBgs,
       };
